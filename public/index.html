@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Charts</title>
+<script src="lightweight-charts.js"></script>
+<script>window.LightweightCharts||document.write('<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"><\/script>')</script>
+<style>
+:root{--bg:#10141a;--panel:#171c24;--line:#262d38;--text:#d5dbe5;--mute:#7f8a9b;--up:#2fb67c;--down:#e5534b}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+header b{font-size:15px;margin-right:6px}
+input,select,button{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:inherit}
+input{width:130px}button{cursor:pointer}button:hover{border-color:var(--mute)}
+label{display:flex;align-items:center;gap:5px;color:var(--mute)}
+#status{margin-left:auto;color:var(--mute)}
+#chart{flex:1;min-height:0}
+</style></head><body>
+<header>
+  <b>My Charts</b>
+  <input id="sym" value="^NSEI" list="syms" aria-label="Symbol">
+  <datalist id="syms"><option>^NSEI</option><option>^NSEBANK</option><option>RELIANCE.NS</option><option>BTC-USD</option><option>GC=F</option><option>USDINR=X</option><option>EURUSD=X</option><option>CL=F</option><option>NG=F</option></datalist>
+  <select id="tf" aria-label="Timeframe">
+    <option value="1m|7d">1m</option><option value="5m|30d" selected>5m</option><option value="15m|60d">15m</option><option value="60m|730d">1h</option><option value="1d|5y">1D</option>
+  </select>
+  <label><input type="checkbox" id="st" checked style="width:auto"> Supertrend (10, 3)</label>
+  <button id="go">Load</button>
+  <span id="status">Ready</span>
+</header>
+<div id="chart"></div>
+<script>
+const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+  layout:{background:{color:'#10141a'},textColor:'#d5dbe5'},
+  grid:{vertLines:{color:'#1b222c'},horzLines:{color:'#1b222c'}},
+  timeScale:{timeVisible:true,secondsVisible:false,borderColor:'#262d38'},
+  rightPriceScale:{borderColor:'#262d38'},
+  crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+  autoSize:true
+});
+const candle = chart.addCandlestickSeries({upColor:'#2fb67c',downColor:'#e5534b',borderVisible:false,wickUpColor:'#2fb67c',wickDownColor:'#e5534b'});
+const stUp = chart.addLineSeries({color:'#2fb67c',lineWidth:2,lastValueVisible:false,priceLineVisible:false});
+const stDn = chart.addLineSeries({color:'#e5534b',lineWidth:2,lastValueVisible:false,priceLineVisible:false});
+
+// ---------- Indicators (yaha pachi KIS v2.0 port thase) ----------
+function supertrend(d, period=10, mult=3){
+  const n=d.length, atr=new Array(n).fill(null), up=[], dn=[];
+  let prevClose=null, rma=null, trSum=0, fu=null, fl=null, dir=1;
+  for(let i=0;i<n;i++){
+    const c=d[i], tr=prevClose==null?c.high-c.low:Math.max(c.high-c.low,Math.abs(c.high-prevClose),Math.abs(c.low-prevClose));
+    if(i<period){trSum+=tr; if(i===period-1) rma=trSum/period;} else rma=(rma*(period-1)+tr)/period;
+    prevClose=c.close;
+    if(rma==null) continue;
+    const hl2=(c.high+c.low)/2, bu=hl2+mult*rma, bl=hl2-mult*rma, pc=d[i-1]?d[i-1].close:c.close;
+    fu=(fu==null||bu<fu||pc>fu)?bu:fu;
+    fl=(fl==null||bl>fl||pc<fl)?bl:fl;
+    if(dir===1 && c.close<fl) dir=-1; else if(dir===-1 && c.close>fu) dir=1;
+    if(dir===1){up.push({time:c.time,value:fl});dn.push({time:c.time});}
+    else{dn.push({time:c.time,value:fu});up.push({time:c.time});}
+  }
+  return {up,dn};
+}
+
+const $=id=>document.getElementById(id);
+async function load(){
+  const [interval,range]=$('tf').value.split('|'), symbol=$('sym').value.trim();
+  $('status').textContent='Loading...'; const t0=performance.now();
+  try{
+    const r=await fetch(`/api/candles?symbol=${encodeURIComponent(symbol)}&interval=${interval}&range=${range}`);
+    const d=await r.json(); if(d.error) throw new Error(d.error);
+    const t1=performance.now();
+    candle.setData(d);
+    if($('st').checked){const s=supertrend(d);stUp.setData(s.up);stDn.setData(s.dn);}else{stUp.setData([]);stDn.setData([]);}
+    chart.timeScale().fitContent();
+    $('status').textContent=`${symbol} | ${d.length} candles | data ${(t1-t0).toFixed(0)} ms, total ${(performance.now()-t0).toFixed(0)} ms`;
+  }catch(e){$('status').textContent='Error: '+e.message;}
+}
+$('go').onclick=load; $('tf').onchange=load; $('st').onchange=load;
+$('sym').addEventListener('keydown',e=>{if(e.key==='Enter')load();});
+load();
+</script></body></html>
