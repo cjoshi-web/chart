@@ -125,4 +125,3 @@
   }
   g.KIS = { stepLine, atrSeries, smartCloud, institutionZones, maTypes: Object.keys(ma) };
 })(window);
-  
