@@ -1,1017 +1,687 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Keep It Simple v2.0 — XAUUSD Terminal</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-  <style>
-    :root {
-      --bg-app: #060911;
-      --bg-panel: rgba(12, 18, 32, 0.9);
-      --bg-card: rgba(20, 29, 49, 0.78);
-      --bg-input: #0e1626;
-      --border: rgba(148, 163, 184, 0.14);
-      --border-active: rgba(56, 189, 248, 0.55);
-      --text: #f8fafc;
-      --text-sub: #94a3b8;
-      --text-muted: #64748b;
-      --accent: #38bdf8;
-      --accent-2: #818cf8;
-      --radius-xl: 18px;
-      --radius-lg: 14px;
-      --radius-md: 10px;
-      --radius-sm: 8px;
-      --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-      --font-mono: "JetBrains Mono", monospace;
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>My Charts</title>
+<script src="lightweight-charts.js"></script>
+<script>window.LightweightCharts||document.write('<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"><\/script>')</script>
+<script src="kis.js"></script>
+<style>
+  :root {
+    --bg: #070a11;
+    --panel: rgba(13, 18, 28, 0.88);
+    --panel2: rgba(22, 29, 44, 0.85);
+    --hover: rgba(36, 47, 70, 0.92);
+    --line: rgba(148, 163, 184, 0.14);
+    --line-strong: rgba(56, 189, 248, 0.45);
+    --text: #f1f5f9;
+    --mute: #94a3b8;
+    --accent: #3b82f6;
+    --accent-glow: rgba(59, 130, 246, 0.32);
+    --chart-bg: #070a11;
+    --grid: rgba(148, 163, 184, 0.06);
+    --xh: #475569;
+    --shadow: 0 24px 64px rgba(0, 0, 0, 0.65);
+    --modal-bg: #0d1320;
+  }
+
+  [data-theme=light] {
+    --bg: #f1f5f9;
+    --panel: rgba(255, 255, 255, 0.92);
+    --panel2: #f8fafc;
+    --hover: #e2e8f0;
+    --line: rgba(15, 23, 42, 0.1);
+    --line-strong: rgba(37, 99, 235, 0.4);
+    --text: #0f172a;
+    --mute: #64748b;
+    --accent: #2563eb;
+    --accent-glow: rgba(37, 99, 235, 0.22);
+    --chart-bg: #ffffff;
+    --grid: rgba(15, 23, 42, 0.05);
+    --xh: #334155;
+    --shadow: 0 20px 50px rgba(15, 23, 42, 0.16);
+    --modal-bg: #ffffff;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 500 13.5px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Modern Glass Top Toolbar */
+  .tb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--panel);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--line);
+    z-index: 20;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.16), rgba(99, 102, 241, 0.12));
+    border: 1px solid var(--line);
+    white-space: nowrap;
+  }
+
+  .brand::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 10px #10b981;
+  }
+
+  .sp { flex: 1; }
+
+  .sel, input[type=number], input[type=text] {
+    background: var(--panel2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 7px 11px;
+    font: inherit;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+
+  .sel:hover, input[type=number]:hover, input[type=text]:hover {
+    border-color: var(--line-strong);
+  }
+
+  .sel:focus, input[type=number]:focus, input[type=text]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  #sym {
+    font-weight: 700;
+    min-width: 132px;
+    cursor: pointer;
+  }
+
+  /* Segmented Timeframe Switcher */
+  .seg {
+    display: flex;
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .seg::-webkit-scrollbar { display: none; }
+
+  .seg button {
+    background: none;
+    border: 0;
+    color: var(--mute);
+    padding: 5px 11px;
+    border-radius: 7px;
+    font: 600 12.5px ui-monospace, SFMono-Regular, Menlo, monospace;
+    cursor: pointer;
+    transition: all 0.16s ease;
+    white-space: nowrap;
+  }
+
+  .seg button:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .seg button.on {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 10px var(--accent-glow);
+  }
+
+  /* Modern Buttons */
+  .btn, .ibtn {
+    background: var(--panel2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 7px 12px;
+    font: 600 13px/1.2 inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .ibtn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+  }
+
+  .btn:hover, .ibtn:hover {
+    background: var(--hover);
+    border-color: var(--line-strong);
+    transform: translateY(-0.5px);
+  }
+
+  .btn:active, .ibtn:active {
+    transform: translateY(0);
+  }
+
+  .btn.pri {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 4px 14px var(--accent-glow);
+  }
+
+  .btn.pri:hover {
+    filter: brightness(1.08);
+  }
+
+  #status {
+    color: var(--mute);
+    font: 500 11.5px ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: var(--panel2);
+    border: 1px solid var(--line);
+  }
+
+  /* Chart Viewport */
+  #chart {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+  }
+
+  #corner {
+    position: absolute;
+    right: 74px;
+    bottom: 34px;
+    z-index: 4;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .pscale {
+    display: flex;
+    gap: 2px;
+    background: var(--panel);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 3px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  }
+
+  .pscale button, #goLatest {
+    background: none;
+    border: 0;
+    color: var(--mute);
+    font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .pscale button:hover, #goLatest:hover {
+    color: var(--text);
+    background: var(--hover);
+  }
+
+  .pscale button.on {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  #goLatest {
+    display: none;
+    align-items: center;
+    background: var(--panel);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--line-strong);
+    color: var(--text);
+    padding: 6px 11px;
+    border-radius: 9px;
+    font-size: 11.5px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  }
+
+  /* Floating Legend & HUD Info Card */
+  #legend {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    z-index: 4;
+    max-width: min(92vw, 350px);
+  }
+
+  .lg {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--panel);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 4px 6px 4px 11px;
+    font-size: 12.5px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  }
+
+  .lg.off .nm { opacity: 0.45; }
+
+  .lg button {
+    background: none;
+    border: 0;
+    color: var(--mute);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex;
+    transition: all 0.15s ease;
+  }
+
+  .lg button:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+
+  .lg svg { width: 15px; height: 15px; }
+
+  #info {
+    margin-top: 7px;
+    font: 500 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: var(--panel);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 12px;
+    pointer-events: none;
+    display: none;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+  }
+
+  /* Next-Level Modern Modal & Settings Popup */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes popIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .ov {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 15, 0.68);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 14px;
+    animation: fadeIn 0.16s ease-out;
+  }
+
+  .md {
+    background: var(--modal-bg);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    width: min(100%, 500px);
+    max-height: 88dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .md-h {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 18px 12px;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .md-h button {
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    color: var(--mute);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+  }
+
+  .md-h button:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+
+  /* Segmented Pill Tabs inside Popup */
+  .tabs {
+    display: flex;
+    gap: 6px;
+    padding: 10px 18px;
+    background: var(--panel2);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .tabs button {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--mute);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font: 600 13px inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .tabs button:hover {
+    color: var(--text);
+  }
+
+  .tabs button.on {
+    background: var(--modal-bg);
+    color: var(--text);
+    border-color: var(--line);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  }
+
+  .md-b {
+    padding: 8px 18px 16px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .grp {
+    margin: 16px 0 8px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    border-radius: 11px;
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    min-height: 44px;
+    transition: border-color 0.15s ease;
+  }
+
+  .row:hover {
+    border-color: var(--line-strong);
+  }
+
+  .row > span {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .row input[type=number] {
+    width: 96px;
+    text-align: right;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .row .sel {
+    max-width: 225px;
+  }
+
+  /* Modern Toggle Switch for Checkboxes */
+  .row input[type=checkbox] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 40px;
+    height: 22px;
+    background: rgba(148, 163, 184, 0.25);
+    border-radius: 999px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .row input[type=checkbox]::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .row input[type=checkbox]:checked {
+    background: var(--accent);
+  }
+
+  .row input[type=checkbox]:checked::after {
+    transform: translateX(18px);
+  }
+
+  .row input[type=color] {
+    width: 44px;
+    height: 30px;
+    padding: 2px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--modal-bg);
+    cursor: pointer;
+  }
+
+  .row.dis {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .md-f {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 13px 18px;
+    background: var(--panel2);
+    border-top: 1px solid var(--line);
+  }
+
+  .md-f .sp { flex: 1; }
+
+  .srch {
+    width: calc(100% - 36px);
+    margin: 12px 18px;
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 18px;
+    cursor: pointer;
+    border-top: 1px solid var(--line);
+    transition: background 0.15s ease;
+  }
+
+  .item:hover { background: var(--hover); }
+  .item small { display: block; color: var(--mute); margin-top: 2px; }
+
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    background: rgba(59, 130, 246, 0.14);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 999px;
+    padding: 3px 9px;
+  }
+
+  /* Mobile-First Responsive Polish */
+  @media (max-width: 768px) {
+    .tb {
+      padding: 7px 10px;
+      gap: 6px;
     }
-
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-    html, body {
-      margin: 0; padding: 0; width: 100%; height: 100%;
-      background: var(--bg-app); color: var(--text);
-      font-family: var(--font-sans); overflow: hidden;
-    }
-
-    .shell {
-      display: grid;
-      grid-template-rows: auto 1fr;
-      width: 100vw; height: 100dvh;
-      background:
-        radial-gradient(circle at 15% 10%, rgba(56, 189, 248, 0.08), transparent 40%),
-        radial-gradient(circle at 85% 15%, rgba(129, 140, 248, 0.08), transparent 42%),
-        var(--bg-app);
-    }
-
-    /* Top Bar */
-    .topbar {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 8px; padding: 8px 14px;
-      background: var(--bg-panel); backdrop-filter: blur(18px);
-      border-bottom: 1px solid var(--border); z-index: 30;
-    }
-
-    .group { display: flex; align-items: center; gap: 8px; min-width: 0; }
 
     .brand {
-      display: flex; align-items: center; gap: 8px;
-      padding: 6px 11px; border-radius: var(--radius-md);
-      background: var(--bg-card); border: 1px solid var(--border);
-      font-weight: 700; font-size: 13px; white-space: nowrap;
+      font-size: 13px;
+      padding: 5px 8px;
     }
 
-    .live-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: #10b981; box-shadow: 0 0 10px #10b981;
+    #sym {
+      min-width: 112px;
+      padding: 6px 8px;
+      font-size: 13px;
     }
 
-    .tf-pills {
-      display: flex; align-items: center; gap: 2px; padding: 3px;
-      border-radius: var(--radius-md); background: var(--bg-card);
-      border: 1px solid var(--border); overflow-x: auto; scrollbar-width: none;
-    }
-    .tf-pills::-webkit-scrollbar { display: none; }
-
-    .tf-btn {
-      border: none; background: transparent; color: var(--text-sub);
-      font-family: var(--font-mono); font-size: 11.5px; font-weight: 600;
-      padding: 5px 9px; border-radius: var(--radius-sm); cursor: pointer;
-      white-space: nowrap; transition: all 0.15s ease;
-    }
-    .tf-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-    .tf-btn.active {
-      color: #050b14;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      box-shadow: 0 2px 12px rgba(56, 189, 248, 0.28);
+    .seg {
+      order: 3;
+      width: 100%;
+      justify-content: space-between;
     }
 
-    .top-select, .btn-settings {
-      height: 34px; border-radius: var(--radius-md);
-      border: 1px solid var(--border); background: var(--bg-card);
-      color: var(--text); font-size: 12px; font-weight: 500;
-      padding: 0 10px; display: inline-flex; align-items: center; gap: 6px;
-      cursor: pointer; outline: none; white-space: nowrap; transition: all 0.15s ease;
-    }
-    .top-select:hover, .btn-settings:hover {
-      border-color: var(--border-active); background: rgba(30, 41, 59, 0.85);
+    .seg button {
+      flex: 1;
+      text-align: center;
+      padding: 6px 6px;
     }
 
-    .btn-settings {
-      background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(129, 140, 248, 0.18));
-      border-color: rgba(56, 189, 248, 0.45); font-weight: 600;
+    #status {
+      display: none;
     }
 
-    /* Chart Stage */
-    .stage { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; }
-    #chart { width: 100%; height: 100%; }
-
-    .hud {
-      position: absolute; top: 12px; left: 14px; right: 14px;
-      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-      gap: 8px; pointer-events: none; z-index: 15;
+    #corner {
+      right: 58px;
+      bottom: 28px;
     }
 
-    .ohlc-box {
-      pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
-      padding: 7px 12px; border-radius: var(--radius-md);
-      background: rgba(9, 14, 26, 0.8); backdrop-filter: blur(14px);
-      border: 1px solid var(--border); font-family: var(--font-mono); font-size: 11.5px;
+    #legend {
+      top: 8px;
+      left: 8px;
+      max-width: calc(100vw - 75px);
     }
 
-    .last-px { font-size: 14.5px; font-weight: 700; }
-    .ohlc-kv span { color: var(--text-muted); margin-right: 3px; }
-
-    .status-chips { pointer-events: auto; display: flex; flex-wrap: wrap; gap: 6px; }
-    .chip {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 5px 10px; border-radius: 999px;
-      background: rgba(9, 14, 26, 0.8); backdrop-filter: blur(12px);
-      border: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px;
-    }
-    .dot { width: 8px; height: 8px; border-radius: 50%; }
-
-    /* Modern Settings Modal */
-    .backdrop {
-      position: fixed; inset: 0;
-      background: rgba(2, 6, 15, 0.76); backdrop-filter: blur(10px);
-      display: none; align-items: center; justify-content: center;
-      padding: 16px; z-index: 100;
-    }
-    .backdrop.open { display: flex; }
-
-    .modal {
-      width: 100%; max-width: 720px; max-height: 88dvh;
-      display: grid; grid-template-rows: auto auto 1fr auto;
-      background: #0b111e; border: 1px solid rgba(148, 163, 184, 0.22);
-      border-radius: var(--radius-xl); box-shadow: 0 28px 80px rgba(0, 0, 0, 0.75);
-      overflow: hidden;
+    #info {
+      font-size: 10.5px;
+      padding: 6px 9px;
     }
 
-    .modal-hdr {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 18px; border-bottom: 1px solid var(--border);
-    }
-    .modal-ttl { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-
-    .tabs {
-      display: flex; gap: 4px; padding: 8px 18px 0;
-      background: rgba(15, 23, 42, 0.55); border-bottom: 1px solid var(--border);
-      overflow-x: auto; scrollbar-width: none;
-    }
-    .tabs::-webkit-scrollbar { display: none; }
-
-    .tab-btn {
-      border: none; background: transparent; color: var(--text-sub);
-      font-size: 12.5px; font-weight: 600; padding: 10px 14px;
-      border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap;
-    }
-    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-
-    .modal-body { padding: 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-    .pane { display: none; flex-direction: column; gap: 10px; }
-    .pane.active { display: flex; }
-
-    .row {
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      padding: 11px 14px; border-radius: var(--radius-md);
-      background: var(--bg-card); border: 1px solid var(--border);
-    }
-    .row-name { font-size: 13px; font-weight: 600; }
-    .row-hint { font-size: 11.5px; color: var(--text-sub); margin-top: 2px; }
-
-    select.ctrl, input.ctrl {
-      background: var(--bg-input); color: var(--text);
-      border: 1px solid var(--border); border-radius: var(--radius-sm);
-      padding: 7px 10px; font-family: var(--font-mono); font-size: 12px; outline: none;
-    }
-    select.ctrl:focus, input.ctrl:focus { border-color: var(--border-active); }
-
-    input[type="color"] {
-      width: 38px; height: 28px; border: 1px solid var(--border);
-      border-radius: var(--radius-sm); background: transparent; cursor: pointer; padding: 0;
+    .ov {
+      align-items: flex-end;
+      padding: 0;
     }
 
-    .switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
-    .switch input { opacity: 0; width: 0; height: 0; }
-    .slider {
-      position: absolute; inset: 0; background: #1e293b;
-      border: 1px solid var(--border); border-radius: 999px; cursor: pointer; transition: 0.2s;
-    }
-    .slider:before {
-      content: ""; position: absolute; height: 16px; width: 16px; left: 3px; top: 3px;
-      background: #e2e8f0; border-radius: 50%; transition: 0.2s;
-    }
-    .switch input:checked + .slider {
-      background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: transparent;
-    }
-    .switch input:checked + .slider:before { transform: translateX(18px); background: #050b14; }
-
-    .modal-ftr {
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
-      padding: 12px 18px; border-top: 1px solid var(--border); background: rgba(9, 14, 26, 0.92);
-    }
-    .btn-ghost {
-      background: transparent; border: 1px solid var(--border); color: var(--text-sub);
-      padding: 8px 13px; border-radius: var(--radius-md); font-size: 12.5px; font-weight: 600; cursor: pointer;
-    }
-    .btn-apply {
-      background: linear-gradient(135deg, var(--accent), var(--accent-2)); border: none; color: #050b14;
-      padding: 8px 16px; border-radius: var(--radius-md); font-size: 12.5px; font-weight: 700; cursor: pointer;
+    .md {
+      width: 100%;
+      max-width: 100%;
+      max-height: 88dvh;
+      border-radius: 20px 20px 0 0;
+      border-bottom: 0;
     }
 
-    @media (max-width: 768px) {
-      .topbar { flex-wrap: wrap; padding: 7px 10px; gap: 6px; }
-      .group { width: 100%; justify-content: space-between; }
-      .hide-mobile { display: none; }
-      .hud { top: 8px; left: 10px; right: 10px; }
-      .ohlc-box { padding: 6px 9px; gap: 6px; font-size: 10.5px; }
-      .last-px { font-size: 13px; }
-      .status-chips { display: none; }
-      .backdrop { align-items: flex-end; padding: 0; }
-      .modal { max-width: 100%; max-height: 90dvh; border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+    .row .sel {
+      max-width: 165px;
     }
-  </style>
+  }
+</style>
 </head>
 <body>
-  <div class="shell">
-    <header class="topbar">
-      <div class="group">
-        <div class="brand">
-          <span class="live-dot"></span>
-          <span id="symTitle">XAUUSD · KIS v2.0</span>
-        </div>
-        <div class="tf-pills" id="tfPills">
-          <button class="tf-btn" data-tf="1m">1m</button>
-          <button class="tf-btn" data-tf="5m">5m</button>
-          <button class="tf-btn active" data-tf="15m">15m</button>
-          <button class="tf-btn" data-tf="1h">1H</button>
-          <button class="tf-btn" data-tf="4h">4H</button>
-          <button class="tf-btn" data-tf="1d">1D</button>
-        </div>
-      </div>
-
-      <div class="group">
-        <select class="top-select hide-mobile" id="quickDataSource" title="Market Data Source">
-          <option value="sim_xau">Data: XAUUSD Live Feed</option>
-          <option value="yahoo_gc">Data: Yahoo Finance (GC=F)</option>
-          <option value="worker_api">Data: Worker (/api/ohlc)</option>
-          <option value="dhan_stream">Data: Dhan Feed</option>
-        </select>
-
-        <select class="top-select hide-mobile" id="quickCandleMode" title="Candle Color Mode">
-          <option value="Smart EMA">Candles: Smart EMA</option>
-          <option value="As Per Step Line">Candles: Step Line</option>
-          <option value="As Per Step Line Breakout/Breakdown">Candles: Step Breakout</option>
-          <option value="RSI">Candles: RSI (14)</option>
-          <option value="HalfTrend">Candles: HalfTrend</option>
-          <option value="Supertrend 1 & 2">Candles: Supertrend 1 & 2</option>
-          <option value="None">Candles: Default</option>
-        </select>
-
-        <button class="btn-settings" id="openModal" type="button">
-          <span>⚙</span>
-          <span>Settings</span>
-        </button>
-      </div>
-    </header>
-
-    <main class="stage">
-      <div class="hud">
-        <div class="ohlc-box">
-          <span class="last-px" id="pxLast">---.--</span>
-          <div class="ohlc-kv"><span>O</span><strong id="pxO">--</strong></div>
-          <div class="ohlc-kv"><span>H</span><strong id="pxH">--</strong></div>
-          <div class="ohlc-kv"><span>L</span><strong id="pxL">--</strong></div>
-          <div class="ohlc-kv"><span>C</span><strong id="pxC">--</strong></div>
-        </div>
-        <div class="status-chips" id="chips"></div>
-      </div>
-      <div id="chart"></div>
-    </main>
-  </div>
-
-  <!-- Modern Settings Modal -->
-  <div class="backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalHeading">
-    <div class="modal">
-      <div class="modal-hdr">
-        <div class="modal-ttl" id="modalHeading">
-          <span>⚙</span>
-          <span>Keep It Simple v2.0 — Settings</span>
-        </div>
-        <button class="btn-ghost" id="closeModal" type="button">✕</button>
-      </div>
-
-      <div class="tabs">
-        <button class="tab-btn active" data-t="src_step">Data & Step Line</button>
-        <button class="tab-btn" data-t="candles">Candle Colors</button>
-        <button class="tab-btn" data-t="ma_st">Smart EMA & Trend</button>
-      </div>
-
-      <div class="modal-body">
-        <!-- Tab 1: Data Source + Step Data Source + Dynamic Step Line -->
-        <div class="pane active" data-p="src_step">
-          <div class="row">
-            <div>
-              <div class="row-name">Market Data Source</div>
-              <div class="row-hint">Select feed source for chart candles</div>
-            </div>
-            <select class="ctrl" id="optDataSource">
-              <option value="sim_xau">XAUUSD Live Feed</option>
-              <option value="yahoo_gc">Yahoo Finance (GC=F)</option>
-              <option value="worker_api">Worker API (/api/ohlc)</option>
-              <option value="dhan_stream">Dhan Feed</option>
-            </select>
-          </div>
-
-          <div class="row">
-            <div>
-              <div class="row-name">Symbol</div>
-              <div class="row-hint">Default XAUUSD</div>
-            </div>
-            <input type="text" class="ctrl" id="optSymbol" style="width:120px;" />
-          </div>
-
-          <div class="row">
-            <div>
-              <div class="row-name">Step Data Source</div>
-              <div class="row-hint">Pine KIS v2.0 source basis</div>
-            </div>
-            <select class="ctrl" id="optStepSrc">
-              <option value="Real Price">Real Price</option>
-              <option value="SMA">SMA</option>
-              <option value="EMA">EMA</option>
-              <option value="WMA">WMA</option>
-              <option value="RMA">RMA</option>
-              <option value="HMA">HMA</option>
-              <option value="DEMA">DEMA</option>
-              <option value="TEMA">TEMA</option>
-              <option value="ZLEMA">ZLEMA</option>
-              <option value="VWMA">VWMA</option>
-              <option value="Heikin Ashi">Heikin Ashi</option>
-            </select>
-          </div>
-
-          <div class="row">
-            <div>
-              <div class="row-name">Source Length</div>
-              <div class="row-hint">Moving / smoothing period</div>
-            </div>
-            <input type="number" class="ctrl" id="optSrcLen" min="1" max="300" style="width:86px;" />
-          </div>
-
-          <div class="row">
-            <div>
-              <div class="row-name">Box Method</div>
-              <div class="row-hint">Step brick calculation mode</div>
-            </div>
-            <select class="ctrl" id="optBoxMethod">
-              <option value="Fixed Points">Fixed Points</option>
-              <option value="Percentage (Fixed)">Percentage (Fixed)</option>
-              <option value="Percentage (Compounding)">Percentage (Compounding)</option>
-              <option value="ATR Points">ATR Points</option>
-            </select>
-          </div>
-
-          <div class="row">
-            <div>
-              <div class="row-name">Input (Points or %)</div>
-              <div class="row-hint">Brick size / percentage value</div>
-            </div>
-            <input type="number" class="ctrl" id="optBoxVal" min="0.001" step="0.05" style="width:96px;" />
-          </div>
-
-          <div class="row">
-            <div>
-              <div class="row-name">Show Step Line</div>
-              <div class="row-hint">Plot Dynamic Step Line on chart</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="optShowStep" />
-              <span class="slider"></span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Tab 2: Keep It Simple Candle Colors -->
-        <div class="pane" data-p="candles">
-          <div class="row">
-            <div>
-              <div class="row-name">Candle Colors Mode</div>
-              <div class="row-hint">Match KIS v2.0 candle coloring logic</div>
-            </div>
-            <select class="ctrl" id="optCandleMode">
-              <option value="Smart EMA">Smart EMA</option>
-              <option value="As Per Step Line">As Per Step Line</option>
-              <option value="As Per Step Line Breakout/Breakdown">As Per Step Line Breakout/Breakdown</option>
-              <option value="RSI">RSI</option>
-              <option value="HalfTrend">HalfTrend</option>
-              <option value="Supertrend 1 & 2">Supertrend 1 & 2</option>
-              <option value="None">None</option>
-            </select>
-          </div>
-
-          <div class="row">
-            <div>
-              <div class="row-name">Candle Up Color</div>
-              <div class="row-hint">Bullish / positive state color</div>
-            </div>
-            <input type="color" id="optCandleUp" />
-          </div>
-
-          <div class="row">
-            <div>
-              <div class="row-name">Candle Down Color</div>
-              <div class="row-hint">Bearish / negative state color</div>
-            </div>
-            <input type="color" id="optCandleDown" />
-          </div>
-
-          <div class="row">
-            <div>
-              <div class="row-name">Candle Neutral Color</div>
-              <div class="row-hint">Neutral / mixed condition color</div>
-            </div>
-            <input type="color" id="optCandleNeutral" />
-          </div>
-
-          <div class="row">
-            <div>
-              <div class="row-name">Step Up / Down Color</div>
-              <div class="row-hint">Dynamic Step Line colors</div>
-            </div>
-            <div style="display:flex; gap:6px;">
-              <input type="color" id="optStepUp" title="Step Up" />
-              <input type="color" id="optStepDown" title="Step Down" />
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab 3: Smart EMA, EMA & HalfTrend -->
-        <div class="pane" data-p="ma_st">
-          <div class="row">
-            <div>
-              <div class="row-name">Show Smart EMA & EMA</div>
-              <div class="row-hint">Overlay Smart EMA and EMA lines</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="optShowMa" />
-              <span class="slider"></span>
-            </label>
-          </div>
-
-          <div class="row">
-            <div>
-              <div class="row-name">Smart EMA Length</div>
-              <div class="row-hint">Fast / Smart EMA period</div>
-            </div>
-            <input type="number" class="ctrl" id="optSmartLen" min="1" max="300" style="width:86px;" />
-          </div>
-
-          <div class="row">
-            <div>
-              <div class="row-name">EMA Length</div>
-              <div class="row-hint">Comparison EMA period</div>
-            </div>
-            <input type="number" class="ctrl" id="optEmaLen" min="1" max="300" style="width:86px;" />
-          </div>
-
-          <div class="row">
-            <div>
-              <div class="row-name">Show HalfTrend</div>
-              <div class="row-hint">Plot HalfTrend line on chart</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="optShowHt" />
-              <span class="slider"></span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-ftr">
-        <button class="btn-ghost" id="resetBtn" type="button">Reset Defaults</button>
-        <div style="display:flex; gap:8px;">
-          <button class="btn-ghost" id="cancelBtn" type="button">Cancel</button>
-          <button class="btn-apply" id="applyBtn" type="button">Apply & Save</button>
-        </div>
-      </div>
+<header class="tb">
+  <div class="brand">My Charts</div>
+  <select id="sym" class="sel" aria-label="Symbol"></select>
+  <div class="seg" id="tfs"></div>
+  <button class="btn" id="indBtn"><span id="icoAct"></span>Indicators</button>
+  <div class="sp"></div>
+  <span id="status">Ready</span>
+  <button class="ibtn" id="refresh" title="Refresh data"></button>
+  <button class="ibtn" id="cset" title="Chart settings"></button>
+  <button class="ibtn" id="theme" title="Dark / Light mode"></button>
+</header>
+<div id="chart">
+  <div id="corner">
+    <button id="goLatest" title="Go to latest bar (End)">Latest ▶▶</button>
+    <div class="pscale">
+      <button id="bPct" title="Percentage scale">%</button>
+      <button id="bLog" title="Logarithmic scale">log</button>
+      <button id="bAuto" title="Auto scale (Alt+R reset)">auto</button>
     </div>
   </div>
-
-  <script>
-    (() => {
-      const KEY = "kis_v2_xauusd_ui_v1";
-      const DEFAULTS = {
-        symbol: "XAUUSD",
-        timeframe: "15m",
-        dataSource: "sim_xau",
-        stepSrc: "Real Price",
-        srcLen: 9,
-        boxMethod: "Fixed Points",
-        boxVal: 1.5,
-        showStep: true,
-        candleMode: "Smart EMA",
-        candleUp: "#00FF00",
-        candleDown: "#FF0000",
-        candleNeutral: "#a855f7",
-        stepUp: "#00BCD4",
-        stepDown: "#E91E63",
-        showMa: true,
-        smartLen: 5,
-        emaLen: 10,
-        showHt: false,
-      };
-
-      function loadState() {
-        try {
-          const raw = localStorage.getItem(KEY);
-          return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : { ...DEFAULTS };
-        } catch { return { ...DEFAULTS }; }
-      }
-      function saveState(st) {
-        try { localStorage.setItem(KEY, JSON.stringify(st)); } catch {}
-      }
-
-      let st = loadState();
-      let bars = [];
-      let chart = null;
-      let candleSeries = null;
-      let stepSeries = null;
-      let smartSeries = null;
-      let emaSeries = null;
-      let htSeries = null;
-
-      const chartEl = document.getElementById("chart");
-      const backdrop = document.getElementById("modalBackdrop");
-
-      function genXauBars(count = 240, tf = "15m") {
-        const sec = { "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400 }[tf] || 900;
-        const now = Math.floor(Date.now() / 1000);
-        let p = 2728.0;
-        const out = [];
-        for (let i = count; i >= 1; i--) {
-          const time = now - i * sec;
-          const open = p;
-          const close = Math.max(1750, +(open + (Math.random() - 0.495) * 3.4).toFixed(2));
-          const high = +Math.max(open, close + Math.random() * 2.2).toFixed(2);
-          const low = +Math.min(open, close - Math.random() * 2.2).toFixed(2);
-          out.push({ time, open: +open.toFixed(2), high, low, close });
-          p = close;
-        }
-        return out;
-      }
-
-      async function fetchBars() {
-        if (st.dataSource === "worker_api") {
-          try {
-            const res = await fetch(`/api/ohlc?symbol=${encodeURIComponent(st.symbol)}&tf=${encodeURIComponent(st.timeframe)}`);
-            if (res.ok) {
-              const j = await res.json();
-              if (Array.isArray(j.candles) && j.candles.length > 5) return j.candles;
-            }
-          } catch {}
-        }
-        return genXauBars(240, st.timeframe);
-      }
-
-      // Math helpers matching KIS v2.0 concepts
-      function sma(arr, len) {
-        return arr.map((_, i) => {
-          const s = Math.max(0, i - len + 1);
-          const sub = arr.slice(s, i + 1);
-          return sub.reduce((a, b) => a + b, 0) / sub.length;
-        });
-      }
-
-      function ema(arr, len) {
-        if (!arr.length) return [];
-        const k = 2 / (len + 1);
-        const res = [arr[0]];
-        for (let i = 1; i < arr.length; i++) res.push(arr[i] * k + res[i - 1] * (1 - k));
-        return res;
-      }
-
-      function rma(arr, len) {
-        if (!arr.length) return [];
-        const alpha = 1 / len;
-        const res = [arr[0]];
-        for (let i = 1; i < arr.length; i++) res.push(alpha * arr[i] + (1 - alpha) * res[i - 1]);
-        return res;
-      }
-
-      function wma(arr, len) {
-        return arr.map((_, i) => {
-          const start = Math.max(0, i - len + 1);
-          let num = 0, den = 0, w = 1;
-          for (let j = start; j <= i; j++) { num += arr[j] * w; den += w; w++; }
-          return den ? num / den : arr[i];
-        });
-      }
-
-      function hma(arr, len) {
-        const half = Math.max(1, Math.floor(len / 2));
-        const sq = Math.max(1, Math.round(Math.sqrt(len)));
-        const diff = arr.map((_, i) => 2 * wma(arr, half)[i] - wma(arr, len)[i]);
-        return wma(diff, sq);
-      }
-
-      function dema(arr, len) {
-        const e1 = ema(arr, len);
-        const e2 = ema(e1, len);
-        return e1.map((v, i) => 2 * v - e2[i]);
-      }
-
-      function tema(arr, len) {
-        const e1 = ema(arr, len);
-        const e2 = ema(e1, len);
-        const e3 = ema(e2, len);
-        return e1.map((v, i) => 3 * v - 3 * e2[i] + e3[i]);
-      }
-
-      function zlema(arr, len) {
-        const lag = Math.floor((len - 1) / 2);
-        const adj = arr.map((v, i) => v + (v - (arr[Math.max(0, i - lag)] ?? v)));
-        return ema(adj, len);
-      }
-
-      function rsi(arr, len = 14) {
-        const gains = [], losses = [];
-        for (let i = 0; i < arr.length; i++) {
-          if (i === 0) { gains.push(0); losses.push(0); continue; }
-          const d = arr[i] - arr[i - 1];
-          gains.push(Math.max(0, d));
-          losses.push(Math.max(0, -d));
-        }
-        const ag = rma(gains, len);
-        const al = rma(losses, len);
-        return arr.map((_, i) => (al[i] === 0 ? 100 : 100 - 100 / (1 + ag[i] / al[i])));
-      }
-
-      function atrSeries(data, len = 5) {
-        const tr = data.map((b, i) => {
-          if (i === 0) return b.high - b.low;
-          const pc = data[i - 1].close;
-          return Math.max(b.high - b.low, Math.abs(b.high - pc), Math.abs(b.low - pc));
-        });
-        return rma(tr, len);
-      }
-
-      function getStepSourceSeries(data) {
-        const closes = data.map((b) => b.close);
-        switch (st.stepSrc) {
-          case "SMA": return sma(closes, st.srcLen);
-          case "EMA": return ema(closes, st.srcLen);
-          case "WMA": return wma(closes, st.srcLen);
-          case "RMA": return rma(closes, st.srcLen);
-          case "HMA": return hma(closes, st.srcLen);
-          case "DEMA": return dema(closes, st.srcLen);
-          case "TEMA": return tema(closes, st.srcLen);
-          case "ZLEMA": return zlema(closes, st.srcLen);
-          case "Heikin Ashi": {
-            const out = [];
-            let prevHaOpen = (data[0].open + data[0].close) / 2;
-            for (const b of data) {
-              const haC = (b.open + b.high + b.low + b.close) / 4;
-              out.push(haC);
-              prevHaOpen = (prevHaOpen + haC) / 2;
-            }
-            return out;
-          }
-          case "Real Price":
-          default: return closes;
-        }
-      }
-
-      function computeStepEngine(data, stepSrcArr) {
-        const atrs = atrSeries(data, 5);
-        let price = stepSrcArr[0];
-        let dir = 0;
-        const stepLine = [];
-        const stepDirs = [];
-
-        for (let i = 0; i < data.length; i++) {
-          const s = stepSrcArr[i];
-          let dist = st.boxVal;
-          if (st.boxMethod === "ATR Points") dist = atrs[i] || st.boxVal;
-          else if (st.boxMethod === "Percentage (Fixed)" || st.boxMethod === "Percentage (Compounding)") {
-            dist = price * (st.boxVal / 100);
-          }
-          dist = Math.max(0.01, dist);
-
-          if (i > 0) {
-            if (s >= price + dist) {
-              const bricks = Math.floor((s - price) / dist);
-              price += bricks * dist;
-              dir = 1;
-            } else if (s <= price - dist) {
-              const bricks = Math.floor((price - s) / dist);
-              price -= bricks * dist;
-              dir = -1;
-            }
-          }
-          stepLine.push(+price.toFixed(2));
-          stepDirs.push(dir);
-        }
-        return { stepLine, stepDirs };
-      }
-
-      function computeHalfTrend(data, amp = 2) {
-        let trend = 0, nextTrend = 0;
-        let maxLow = data[0].low, minHigh = data[0].high;
-        let up = maxLow, down = minHigh;
-        return data.map((b, i) => {
-          const slice = data.slice(Math.max(0, i - amp + 1), i + 1);
-          const hp = Math.max(...slice.map((x) => x.high));
-          const lp = Math.min(...slice.map((x) => x.low));
-          const hmaV = slice.reduce((a, x) => a + x.high, 0) / slice.length;
-          const lmaV = slice.reduce((a, x) => a + x.low, 0) / slice.length;
-          const prevL = i > 0 ? data[i - 1].low : b.low;
-          const prevH = i > 0 ? data[i - 1].high : b.high;
-
-          if (nextTrend === 1) {
-            maxLow = Math.max(lp, maxLow);
-            if (hmaV < maxLow && b.close < prevL) { trend = 1; nextTrend = 0; minHigh = hp; }
-          } else {
-            minHigh = Math.min(hp, minHigh);
-            if (lmaV > minHigh && b.close > prevH) { trend = 0; nextTrend = 1; maxLow = lp; }
-          }
-          if (trend === 0) up = Math.max(maxLow, up);
-          else down = Math.min(minHigh, down);
-          return { val: trend === 0 ? up : down, trend };
-        });
-      }
-
-      function computeSupertrend(data, len, mult) {
-        const atrs = atrSeries(data, len);
-        let upper = null, lower = null, dir = 1;
-        return data.map((b, i) => {
-          const hl2 = (b.high + b.low) / 2;
-          const ub = hl2 + mult * atrs[i];
-          const lb = hl2 - mult * atrs[i];
-          const pc = i > 0 ? data[i - 1].close : b.close;
-          upper = upper === null || ub < upper || pc > upper ? ub : upper;
-          lower = lower === null || lb > lower || pc < lower ? lb : lower;
-          if (dir === -1 && b.close > upper) dir = 1;
-          else if (dir === 1 && b.close < lower) dir = -1;
-          return dir;
-        });
-      }
-
-      function buildAll() {
-        chartEl.innerHTML = "";
-        if (!window.LightweightCharts || !bars.length) return;
-
-        chart = LightweightCharts.createChart(chartEl, {
-          autoSize: true,
-          layout: {
-            background: { type: "solid", color: "transparent" },
-            textColor: "#94a3b8",
-            fontFamily: '"JetBrains Mono", monospace',
-          },
-          grid: {
-            vertLines: { color: "rgba(148, 163, 184, 0.07)" },
-            horzLines: { color: "rgba(148, 163, 184, 0.07)" },
-          },
-          rightPriceScale: { borderColor: "rgba(148, 163, 184, 0.14)" },
-          timeScale: { borderColor: "rgba(148, 163, 184, 0.14)", timeVisible: true },
-        });
-
-        const closes = bars.map((b) => b.close);
-        const stepSrcArr = getStepSourceSeries(bars);
-        const { stepLine, stepDirs } = computeStepEngine(bars, stepSrcArr);
-        const smartArr = ema(closes, st.smartLen);
-        const emaArr = ema(closes, st.emaLen);
-        const rsiArr = rsi(closes, 14);
-        const htArr = computeHalfTrend(bars, 2);
-        const st1DirArr = computeSupertrend(bars, 10, 1.5);
-        const st2DirArr = computeSupertrend(bars, 10, 3.0);
-
-        const coloredBars = bars.map((b, i) => {
-          let c = st.candleNeutral;
-          switch (st.candleMode) {
-            case "As Per Step Line":
-              c = stepDirs[i] === 1 ? st.stepUp : stepDirs[i] === -1 ? st.stepDown : st.candleNeutral;
-              break;
-            case "As Per Step Line Breakout/Breakdown":
-              c = stepSrcArr[i] > stepLine[i] ? st.stepUp : stepSrcArr[i] < stepLine[i] ? st.stepDown : st.candleNeutral;
-              break;
-            case "RSI":
-              c = rsiArr[i] > 50 ? st.candleUp : rsiArr[i] < 50 ? st.candleDown : st.candleNeutral;
-              break;
-            case "HalfTrend":
-              c = htArr[i].trend === 0 ? st.candleUp : st.candleDown;
-              break;
-            case "Supertrend 1 & 2":
-              c = st1DirArr[i] === 1 && st2DirArr[i] === 1
-                ? st.candleUp
-                : st1DirArr[i] === -1 && st2DirArr[i] === -1
-                ? st.candleDown
-                : st.candleNeutral;
-              break;
-            case "Smart EMA":
-              c = emaArr[i] > smartArr[i] ? st.candleUp : emaArr[i] < smartArr[i] ? st.candleDown : st.candleNeutral;
-              break;
-            case "None":
-            default:
-              return { ...b };
-          }
-          return { ...b, color: c, borderColor: c, wickColor: c };
-        });
-
-        candleSeries = chart.addCandlestickSeries({
-          upColor: st.candleUp,
-          downColor: st.candleDown,
-          borderUpColor: st.candleUp,
-          borderDownColor: st.candleDown,
-          wickUpColor: st.candleUp,
-          wickDownColor: st.candleDown,
-        });
-        candleSeries.setData(coloredBars);
-
-        if (st.showStep) {
-          stepSeries = chart.addLineSeries({
-            color: stepDirs[stepDirs.length - 1] === 1 ? st.stepUp : st.stepDown,
-            lineWidth: 2.5,
-            priceLineVisible: false,
-          });
-          stepSeries.setData(bars.map((b, i) => ({ time: b.time, value: stepLine[i] })));
-        }
-
-        if (st.showMa) {
-          smartSeries = chart.addLineSeries({ color: "#38bdf8", lineWidth: 2, priceLineVisible: false });
-          smartSeries.setData(bars.map((b, i) => ({ time: b.time, value: +smartArr[i].toFixed(2) })));
-
-          emaSeries = chart.addLineSeries({ color: "#f59e0b", lineWidth: 1.5, priceLineVisible: false });
-          emaSeries.setData(bars.map((b, i) => ({ time: b.time, value: +emaArr[i].toFixed(2) })));
-        }
-
-        if (st.showHt) {
-          htSeries = chart.addLineSeries({ color: "#818cf8", lineWidth: 2, priceLineVisible: false });
-          htSeries.setData(bars.map((b, i) => ({ time: b.time, value: +htArr[i].val.toFixed(2) })));
-        }
-
-        chart.subscribeCrosshairMove((param) => {
-          if (param && param.time) {
-            const idx = bars.findIndex((x) => x.time === param.time);
-            if (idx >= 0) { renderHud(idx, coloredBars[idx], stepLine[idx], smartArr[idx], emaArr[idx]); return; }
-          }
-          const lastIdx = bars.length - 1;
-          renderHud(lastIdx, coloredBars[lastIdx], stepLine[lastIdx], smartArr[lastIdx], emaArr[lastIdx]);
-        });
-
-        const lastIdx = bars.length - 1;
-        renderHud(lastIdx, coloredBars[lastIdx], stepLine[lastIdx], smartArr[lastIdx], emaArr[lastIdx]);
-      }
-
-      function renderHud(idx, b, stepV, smartV, emaV) {
-        if (!b) return;
-        const pxEl = document.getElementById("pxLast");
-        pxEl.textContent = b.close.toFixed(2);
-        pxEl.style.color = b.color || (b.close >= b.open ? st.candleUp : st.candleDown);
-        document.getElementById("pxO").textContent = b.open.toFixed(2);
-        document.getElementById("pxH").textContent = b.high.toFixed(2);
-        document.getElementById("pxL").textContent = b.low.toFixed(2);
-        document.getElementById("pxC").textContent = b.close.toFixed(2);
-
-        document.getElementById("chips").innerHTML = [
-          `<div class="chip"><span class="dot" style="background:${st.stepUp}"></span><span>Step(${st.stepSrc})</span><strong>${stepV != null ? stepV.toFixed(2) : "--"}</strong></div>`,
-          st.showMa ? `<div class="chip"><span class="dot" style="background:#38bdf8"></span><span>Smart EMA(${st.smartLen})</span><strong>${smartV != null ? smartV.toFixed(2) : "--"}</strong></div>` : "",
-          st.showMa ? `<div class="chip"><span class="dot" style="background:#f59e0b"></span><span>EMA(${st.emaLen})</span><strong>${emaV != null ? emaV.toFixed(2) : "--"}</strong></div>` : "",
-        ].filter(Boolean).join("");
-      }
-
-      function syncUI() {
-        document.getElementById("symTitle").textContent = `${st.symbol} · KIS v2.0`;
-        document.getElementById("quickDataSource").value = st.dataSource;
-        document.getElementById("quickCandleMode").value = st.candleMode;
-
-        document.querySelectorAll(".tf-btn").forEach((b) => b.classList.toggle("active", b.dataset.tf === st.timeframe));
-
-        document.getElementById("optDataSource").value = st.dataSource;
-        document.getElementById("optSymbol").value = st.symbol;
-        document.getElementById("optStepSrc").value = st.stepSrc;
-        document.getElementById("optSrcLen").value = st.srcLen;
-        document.getElementById("optBoxMethod").value = st.boxMethod;
-        document.getElementById("optBoxVal").value = st.boxVal;
-        document.getElementById("optShowStep").checked = !!st.showStep;
-
-        document.getElementById("optCandleMode").value = st.candleMode;
-        document.getElementById("optCandleUp").value = st.candleUp;
-        document.getElementById("optCandleDown").value = st.candleDown;
-        document.getElementById("optCandleNeutral").value = st.candleNeutral;
-        document.getElementById("optStepUp").value = st.stepUp;
-        document.getElementById("optStepDown").value = st.stepDown;
-
-        document.getElementById("optShowMa").checked = !!st.showMa;
-        document.getElementById("optSmartLen").value = st.smartLen;
-        document.getElementById("optEmaLen").value = st.emaLen;
-        document.getElementById("optShowHt").checked = !!st.showHt;
-      }
-
-      document.querySelectorAll(".tf-btn").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          st.timeframe = btn.dataset.tf;
-          saveState(st);
-          syncUI();
-          bars = await fetchBars();
-          buildAll();
-        });
-      });
-
-      document.getElementById("quickDataSource").addEventListener("change", async (e) => {
-        st.dataSource = e.target.value;
-        saveState(st);
-        syncUI();
-        bars = await fetchBars();
-        buildAll();
-      });
-
-      document.getElementById("quickCandleMode").addEventListener("change", (e) => {
-        st.candleMode = e.target.value;
-        saveState(st);
-        syncUI();
-        buildAll();
-      });
-
-      document.getElementById("openModal").addEventListener("click", () => {
-        syncUI();
-        backdrop.classList.add("open");
-      });
-      const close = () => backdrop.classList.remove("open");
-      document.getElementById("closeModal").addEventListener("click", close);
-      document.getElementById("cancelBtn").addEventListener("click", close);
-      backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
-
-      document.querySelectorAll(".tab-btn").forEach((t) => {
-        t.addEventListener("click", () => {
-          document.querySelectorAll(".tab-btn").forEach((x) => x.classList.remove("active"));
-          document.querySelectorAll(".pane").forEach((p) => p.classList.remove("active"));
-          t.classList.add("active");
-          document.querySelector(`.pane[data-p="${t.dataset.t}"]`).classList.add("active");
-        });
-      });
-
-      document.getElementById("applyBtn").addEventListener("click", async () => {
-        const prevSrc = st.dataSource;
-        const prevSym = st.symbol;
-
-        st.dataSource = document.getElementById("optDataSource").value;
-        st.symbol = (document.getElementById("optSymbol").value || "XAUUSD").trim().toUpperCase();
-        st.stepSrc = document.getElementById("optStepSrc").value;
-        st.srcLen = Math.max(1, parseInt(document.getElementById("optSrcLen").value, 10) || 9);
-        st.boxMethod = document.getElementById("optBoxMethod").value;
-        st.boxVal = Math.max(0.001, parseFloat(document.getElementById("optBoxVal").value) || 1.5);
-        st.showStep = document.getElementById("optShowStep").checked;
-
-        st.candleMode = document.getElementById("optCandleMode").value;
-        st.candleUp = document.getElementById("optCandleUp").value;
-        st.candleDown = document.getElementById("optCandleDown").value;
-        st.candleNeutral = document.getElementById("optCandleNeutral").value;
-        st.stepUp = document.getElementById("optStepUp").value;
-        st.stepDown = document.getElementById("optStepDown").value;
-
-        st.showMa = document.getElementById("optShowMa").checked;
-        st.smartLen = Math.max(1, parseInt(document.getElementById("optSmartLen").value, 10) || 5);
-        st.emaLen = Math.max(1, parseInt(document.getElementById("optEmaLen").value, 10) || 10);
-        st.showHt = document.getElementById("optShowHt").checked;
-
-        saveState(st);
-        syncUI();
-        if (prevSrc !== st.dataSource || prevSym !== st.symbol) {
-          bars = await fetchBars();
-        }
-        buildAll();
-        close();
-      });
-
-      document.getElementById("resetBtn").addEventListener("click", async () => {
-        st = { ...DEFAULTS };
-        saveState(st);
-        syncUI();
-        bars = await fetchBars();
-        buildAll();
-      });
-
-      setInterval(() => {
-        if (!bars.length || !candleSeries) return;
-        const last = bars[bars.length - 1];
-        const nextC = Math.max(1750, +(last.close + (Math.random() - 0.49) * 1.1).toFixed(2));
-        last.close = nextC;
-        last.high = +Math.max(last.high, nextC).toFixed(2);
-        last.low = +Math.min(last.low, nextC).toFixed(2);
-        buildAll();
-      }, 1500);
-
-      (async () => {
-        syncUI();
-        bars = await fetchBars();
-        buildAll();
-      })();
-    })();
-  </script>
+  <div id="legend">
+    <div id="lgRow"></div>
+    <div id="info"></div>
+  </div>
+</div>
+<script src="app.js"></script>
 </body>
 </html>
