@@ -6,7 +6,7 @@
 <script>window.LightweightCharts||document.write('<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"><\/script>')</script>
 <script src="kis.js"></script>
 <style>
-:root{--bg:#10141a;--panel:#171c24;--line:#262d38;--text:#d5dbe5;--mute:#7f8a9b;--up:#2fb67c;--down:#e5534b}
+:root{--bg:#10141a;--panel:#171c24;--line:#262d38;--text:#d5dbe5;--mute:#7f8a9b}
 *{box-sizing:border-box}html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column}
 header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
@@ -22,7 +22,7 @@ summary{cursor:pointer;color:var(--mute)}
 .opts label{flex-direction:column;align-items:flex-start;gap:3px;font-size:12px}
 .opts input[type=number]{width:90px}.opts input[type=color]{width:46px;height:30px;padding:2px}
 .opts [disabled]{opacity:.35}
-#info{position:absolute;top:8px;left:10px;z-index:3;font-size:12px;line-height:1.5;color:var(--text);background:rgba(16,20,26,.8);padding:6px 9px;border-radius:6px;pointer-events:none}
+#info{position:absolute;top:8px;left:10px;z-index:3;font-size:12px;line-height:1.5;background:rgba(16,20,26,.8);padding:6px 9px;border-radius:6px;pointer-events:none}
 </style></head><body>
 <header>
   <b>My Charts</b>
@@ -34,9 +34,9 @@ summary{cursor:pointer;color:var(--mute)}
   <button id="go">Load</button>
   <span id="status">Ready</span>
 </header>
-<details open><summary>Step Line (KIS v2.0)</summary>
+<details><summary>Step Line (KIS v2.0)</summary>
 <div class="opts">
-  <label><span>Show</span><input type="checkbox" id="sShow" checked style="width:auto"></label>
+  <label>Show<input type="checkbox" id="sShow" checked></label>
   <label>Box Method<select id="sMode"><option>Fixed Points</option><option>Percentage (Fixed)</option><option>Percentage (Compounding)</option><option>ATR Points</option><option>Session ATR</option><option selected>Daily ATR %</option></select></label>
   <label>Input (Points or %)<input type="number" id="sVal" value="0.1" min="0.001" step="0.01"></label>
   <label>ATR Length<input type="number" id="sLen" value="5" min="1" step="1"></label>
@@ -47,9 +47,31 @@ summary{cursor:pointer;color:var(--mute)}
   <label>Up Color<input type="color" id="sUp" value="#00bcd4"></label>
   <label>Down Color<input type="color" id="sDn" value="#e91e63"></label>
 </div></details>
+<details open><summary>Smart EMA &amp; Cloud</summary>
+<div class="opts">
+  <label>Show Smart EMA<input type="checkbox" id="eSmart" checked></label>
+  <label>Smart EMA Length (Base TF)<input type="number" id="eSLen" value="5" min="1" step="1"></label>
+  <label>Base Timeframe<select id="eBase"><option value="5">5m</option><option value="15">15m</option><option value="30" selected>30m</option><option value="60">1h</option></select></label>
+  <label>Show EMA<input type="checkbox" id="eShow"></label>
+  <label>MV Type<select id="eType"></select></label>
+  <label>Length<input type="number" id="eLen" value="10" min="1" step="1"></label>
+  <label>Show Cloud<input type="checkbox" id="eCloud" checked></label>
+  <label>Smart EMA Color<input type="color" id="eSCol" value="#2962ff"></label>
+  <label>EMA Color<input type="color" id="eCol" value="#ff0000"></label>
+</div></details>
+<details open><summary>Institution Zone</summary>
+<div class="opts">
+  <label>Show Zone<input type="checkbox" id="zShow" checked></label>
+  <label>Zone Timeframe<select id="zTf"><option value="5m" selected>5m</option><option value="15m">15m</option><option value="30m">30m</option><option value="60m">1h</option></select></label>
+  <label>Fib Top<input type="number" id="zTop" value="0.56" min="0" max="1" step="0.01"></label>
+  <label>Fib Bottom<input type="number" id="zBot" value="0.44" min="0" max="1" step="0.01"></label>
+  <label>Zone Color<input type="color" id="zCol" value="#ff0000"></label>
+  <label>Opacity (0-1)<input type="number" id="zOp" value="0.7" min="0" max="1" step="0.05"></label>
+</div></details>
 <div id="chart"><div id="info"></div></div>
 <script>
-const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+const $=id=>document.getElementById(id);
+const chart = LightweightCharts.createChart($('chart'), {
   layout:{background:{color:'#10141a'},textColor:'#d5dbe5'},
   grid:{vertLines:{color:'#1b222c'},horzLines:{color:'#1b222c'}},
   timeScale:{timeVisible:true,secondsVisible:false,borderColor:'#262d38'},
@@ -58,42 +80,96 @@ const chart = LightweightCharts.createChart(document.getElementById('chart'), {
   autoSize:true
 });
 const candle = chart.addCandlestickSeries({upColor:'#2fb67c',downColor:'#e5534b',borderVisible:false,wickUpColor:'#2fb67c',wickDownColor:'#e5534b'});
-const stepSeries = chart.addLineSeries({lineWidth:3,lineType:(LightweightCharts.LineType?LightweightCharts.LineType.WithSteps:1),lastValueVisible:false,priceLineVisible:false});
-let bars=[], daily=[];
-const $=id=>document.getElementById(id);
+const line=(w,t)=>chart.addLineSeries({lineWidth:w,lastValueVisible:false,priceLineVisible:false,...(t?{lineType:(LightweightCharts.LineType?LightweightCharts.LineType.WithSteps:1)}:{})});
+const stepSeries=line(3,true), smartSeries=line(2), emaSeries=line(1);
+
+// Canvas layers (fills drawn under the candles): EMA cloud + institution zone
+class Layer{constructor(fn){this.fn=fn;this.v={zOrder:()=>'bottom',renderer:()=>({draw:t=>this.fn(t)})};}
+  attached(p){this.p=p;}detached(){}updateAllViews(){}paneViews(){return[this.v];}refresh(){this.p&&this.p.requestUpdate();}}
+let cloudData=[], zoneRects=[];
+const rgba=(hex,a)=>{const n=parseInt(hex.slice(1),16);return `rgba(${n>>16},${n>>8&255},${n&255},${a})`;};
+const cloudLayer=new Layer(t=>t.useBitmapCoordinateSpace(({context:c,horizontalPixelRatio:hr,verticalPixelRatio:vr})=>{
+  const ts=chart.timeScale(), P=cloudData.map(p=>({x:ts.timeToCoordinate(p.time),a:candle.priceToCoordinate(p.a),b:candle.priceToCoordinate(p.b),up:p.up}));
+  const ok=p=>p.x!=null&&p.a!=null&&p.b!=null;
+  const fill=(s,e,up)=>{c.beginPath();c.moveTo(P[s-1].x*hr,P[s-1].a*vr);for(let k=s;k<=e;k++)c.lineTo(P[k].x*hr,P[k].a*vr);
+    for(let k=e;k>=s-1;k--)c.lineTo(P[k].x*hr,P[k].b*vr);c.closePath();c.fillStyle=up?'rgba(0,230,118,.15)':'rgba(255,82,82,.15)';c.fill();};
+  let st=null,ru=null;
+  for(let i=1;i<=P.length;i++){
+    const good=i<P.length&&ok(P[i-1])&&ok(P[i]), up=good?P[i].up:null;
+    if(st!=null&&(!good||up!==ru)){fill(st,i-1,ru);st=null;}
+    if(good&&st==null){st=i;ru=up;}
+  }
+}));
+const zoneLayer=new Layer(t=>t.useBitmapCoordinateSpace(({context:c,horizontalPixelRatio:hr,verticalPixelRatio:vr})=>{
+  const ts=chart.timeScale(), col=rgba($('zCol').value,+$('zOp').value);
+  for(const z of zoneRects){
+    const x0=ts.timeToCoordinate(z.t0),x1=ts.timeToCoordinate(z.t1),y0=candle.priceToCoordinate(z.top),y1=candle.priceToCoordinate(z.bot);
+    if(x0==null||x1==null||y0==null||y1==null)continue;
+    c.fillStyle=col;c.fillRect(x0*hr,Math.min(y0,y1)*vr,Math.max(1,(x1-x0)*hr),Math.abs(y1-y0)*vr);
+  }
+}));
+candle.attachPrimitive(cloudLayer); candle.attachPrimitive(zoneLayer);
+
+KIS.maTypes.forEach(m=>{const o=document.createElement('option');o.textContent=m.toUpperCase();o.value=m;if(m==='ema')o.selected=true;$('eType').appendChild(o);});
+
+let bars=[], daily=[], zbars=[], interval='5m';
+const TFMIN={'1m':1,'5m':5,'15m':15,'30m':30,'60m':60,'1d':1440};
+const RANGE={'1m':'7d','5m':'30d','15m':'60d','30m':'60d','60m':'730d'};
 const fmt=v=>v==null||!isFinite(v)?'N/A':v.toFixed(2);
-function opts(){return{mode:$('sMode').value,value:+$('sVal').value,atrLen:Math.max(1,+$('sLen').value|0),hours:+$('sHrs').value||6.5,mult:+$('sMult').value,protect:Math.max(0,+$('sProt').value|0),colorMode:$('sCol').value,up:$('sUp').value,down:$('sDn').value};}
+function stepOpts(){return{mode:$('sMode').value,value:+$('sVal').value,atrLen:Math.max(1,+$('sLen').value|0),hours:+$('sHrs').value||6.5,mult:+$('sMult').value,protect:Math.max(0,+$('sProt').value|0),colorMode:$('sCol').value,up:$('sUp').value,down:$('sDn').value};}
 function toggles(){const m=$('sMode').value;
   $('sVal').disabled=!['Fixed Points','Percentage (Fixed)','Percentage (Compounding)'].includes(m);
   $('sLen').disabled=!['ATR Points','Session ATR','Daily ATR %'].includes(m);
   $('sHrs').disabled=m!=='Session ATR'; $('sMult').disabled=m!=='Daily ATR %';}
 function draw(){
   toggles();
-  if(!bars.length||!$('sShow').checked){stepSeries.setData([]);$('info').textContent='';return;}
-  const r=KIS.stepLine(bars,daily,opts()), L=r.last;
-  stepSeries.setData(r.points);
-  const sfx=L.dir===1?[' (Call)',' (Target)',' (SL)']:L.dir===-1?[' (Put)',' (SL)',' (Target)']:['','',''];
-  $('info').innerHTML=`Box: ${$('sMode').value}`+(L.master!=null?` | Master ATR (D): ${fmt(L.master)}`:'')+
-    `<br>Brick: ${fmt(L.step)}${L.step&&L.level?' ('+(L.step/L.level*100).toFixed(2)+'%)':''}`+
-    `<br>Level: ${fmt(L.level)}${sfx[0]}<br>Next Up: ${fmt(L.up)}${sfx[1]}<br>Next Down: ${fmt(L.down)}${sfx[2]}`;
+  // Step line
+  if(!bars.length||!$('sShow').checked){stepSeries.setData([]);$('info').textContent='';}
+  else{
+    const r=KIS.stepLine(bars,daily,stepOpts()), L=r.last;
+    stepSeries.setData(r.points);
+    const sfx=L.dir===1?[' (Call)',' (Target)',' (SL)']:L.dir===-1?[' (Put)',' (SL)',' (Target)']:['','',''];
+    $('info').innerHTML=`Box: ${$('sMode').value}`+(L.master!=null?` | Master ATR (D): ${fmt(L.master)}`:'')+
+      `<br>Brick: ${fmt(L.step)}${L.step&&L.level?' ('+(L.step/L.level*100).toFixed(2)+'%)':''}`+
+      `<br>Level: ${fmt(L.level)}${sfx[0]}<br>Next Up: ${fmt(L.up)}${sfx[1]}<br>Next Down: ${fmt(L.down)}${sfx[2]}`;
+  }
+  // Smart EMA, EMA, cloud
+  if(bars.length){
+    const r=KIS.smartCloud(bars,{sLen:Math.max(1,+$('eSLen').value|0),baseMin:+$('eBase').value,tfMin:TFMIN[interval]||1,type:$('eType').value,len:Math.max(1,+$('eLen').value|0)});
+    smartSeries.applyOptions({color:$('eSCol').value}); emaSeries.applyOptions({color:$('eCol').value});
+    smartSeries.setData($('eSmart').checked?r.smart:[]); emaSeries.setData($('eShow').checked?r.ema:[]);
+    cloudData=$('eCloud').checked?r.cloud:[];
+  }else{smartSeries.setData([]);emaSeries.setData([]);cloudData=[];}
+  // Institution zone (intraday charts only)
+  zoneRects=(bars.length&&zbars.length&&$('zShow').checked&&interval!=='1d')?KIS.institutionZones(zbars,bars,{top:+$('zTop').value,bottom:+$('zBot').value}):[];
+  cloudLayer.refresh(); zoneLayer.refresh();
 }
-async function get(symbol,interval,range){
-  const r=await fetch(`/api/candles?symbol=${encodeURIComponent(symbol)}&interval=${interval}&range=${range}`);
+async function get(symbol,iv,range){
+  const r=await fetch(`/api/candles?symbol=${encodeURIComponent(symbol)}&interval=${iv}&range=${range}`);
   const d=await r.json(); if(d.error) throw new Error(d.error);
   return d.filter((c,i,a)=>i===0||c.time>a[i-1].time);
 }
+async function loadZone(){
+  const symbol=$('sym').value.trim(), z=$('zTf').value;
+  zbars=[]; if(interval==='1d'||!$('zShow').checked){draw();return;}
+  try{ zbars=z===interval?bars:await get(symbol,z,RANGE[z]); }catch(e){ $('status').textContent='Zone data: '+e.message; }
+  draw();
+}
 async function load(){
-  const [interval,range]=$('tf').value.split('|'), symbol=$('sym').value.trim();
+  const [iv,range]=$('tf').value.split('|'), symbol=$('sym').value.trim();
   $('status').textContent='Loading...'; const t0=performance.now();
   try{
-    const [d,dd]=await Promise.all([get(symbol,interval,range), interval==='1d'?null:get(symbol,'1d','2y')]);
-    bars=d; daily=dd||d;
+    interval=iv;
+    const z=$('zTf').value, needZ=iv!=='1d'&&z!==iv;
+    const [d,dd,zz]=await Promise.all([get(symbol,iv,range), iv==='1d'?null:get(symbol,'1d','2y'), needZ?get(symbol,z,RANGE[z]).catch(()=>[]):null]);
+    bars=d; daily=dd||d; zbars=iv==='1d'?[]:(zz||d);
     candle.setData(bars); draw(); chart.timeScale().fitContent();
     $('status').textContent=`${symbol} | ${bars.length} candles | ${(performance.now()-t0).toFixed(0)} ms`;
   }catch(e){$('status').textContent='Error: '+e.message;}
 }
 $('go').onclick=load; $('tf').onchange=load;
-document.querySelectorAll('.opts input,.opts select').forEach(e=>{e.oninput=draw;e.onchange=draw;});
 $('sym').addEventListener('keydown',e=>{if(e.key==='Enter')load();});
+document.querySelectorAll('details input,details select').forEach(e=>{e.oninput=draw;e.onchange=draw;});
+$('zTf').onchange=loadZone; $('zShow').onchange=loadZone;
 load();
 </script></body></html>
