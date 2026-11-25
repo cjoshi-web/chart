@@ -3,7 +3,7 @@
   const h = (t, a = {}, ...c) => { const e = document.createElement(t); for (const k in a) { if (a[k] === undefined) continue; if (k === 'class') e.className = a[k]; else if (k.startsWith('on')) e[k] = a[k]; else e.setAttribute(k, a[k]); } c.flat().forEach(x => e.append(x)); return e; };
 
   // ---------- Config ----------
-  const SYMBOLS = [['Nifty 50', '^NSEI'], ['Sensex', '^BSESN'], ['Bank Nifty', '^NSEBANK'], ['XAUUSD', 'XAUUSD=X'], ['BTCUSD', 'BTC-USD']]; // naam, Yahoo symbol
+  const SYMBOLS = [['Nifty 50', ['^NSEI']], ['Sensex', ['^BSESN']], ['Bank Nifty', ['^NSEBANK']], ['XAUUSD', ['XAUUSD=X', 'GC=F']], ['BTCUSD', ['BTC-USD']]]; // naam, Yahoo symbols (pehla na chale to bijo try thay)
   const TFS = [['1m', '1m', '7d'], ['5m', '5m', '30d'], ['15m', '15m', '60d'], ['1h', '60m', '730d'], ['1D', '1d', '5y']];
   const TFMIN = { '1m': 1, '5m': 5, '15m': 15, '30m': 30, '60m': 60, '1d': 1440 };
   const RANGE = { '1m': '7d', '5m': '30d', '15m': '60d', '30m': '60d', '60m': '730d' };
@@ -57,8 +57,14 @@
   const keysOf = id => SCHEMA.find(g => g.id === id).items.map(i => i.k);
 
   // ---------- Saved state (page reload par pan settings yaad rahe) ----------
-  let S = { theme: 'dark', sym: '^NSEI', tf: '5m', has: true, vis: true, P: { ...DEF } };
-  try { const j = JSON.parse(localStorage.getItem('kisChart1')); if (j) S = { ...S, ...j, P: { ...DEF, ...(j.P || {}) } }; } catch (e) {}
+  const CSET = [
+    { k: 'zoomAnchor', t: 'select', l: 'Mouse wheel zoom anchor', o: [['right', 'Right edge (TradingView style)'], ['cursor', 'Mouse cursor']], d: 'right' },
+    { k: 'rightOffset', t: 'num', l: 'Right margin (bars)', d: 10, min: 0, max: 200, step: 1 }
+  ];
+  const CDEF = {}; CSET.forEach(i => CDEF[i.k] = i.d);
+  let S = { theme: 'dark', sym: 'Nifty 50', tf: '5m', has: true, vis: true, P: { ...DEF }, C: { ...CDEF } };
+  try { const j = JSON.parse(localStorage.getItem('kisChart1')); if (j) S = { ...S, ...j, P: { ...DEF, ...(j.P || {}) }, C: { ...CDEF, ...(j.C || {}) } }; } catch (e) {}
+  if (!SYMBOLS.some(x => x[0] === S.sym)) S.sym = 'Nifty 50';
   const save = () => { try { localStorage.setItem('kisChart1', JSON.stringify(S)); } catch (e) {} };
   document.documentElement.dataset.theme = S.theme;
 
@@ -67,12 +73,19 @@
   const themeOpts = () => ({
     layout: { background: { type: LightweightCharts.ColorType.Solid, color: css('--chart-bg') }, textColor: css('--text') },
     grid: { vertLines: { color: css('--grid') }, horzLines: { color: css('--grid') } },
-    timeScale: { borderColor: css('--line') }, rightPriceScale: { borderColor: css('--line') }
+    timeScale: { borderColor: css('--line') }, rightPriceScale: { borderColor: css('--line') },
+    crosshair: { vertLine: { color: '#9598a1', labelBackgroundColor: css('--xh') }, horzLine: { color: '#9598a1', labelBackgroundColor: css('--xh') } }
   });
   const chart = LightweightCharts.createChart($('chart'), {
     ...themeOpts(), autoSize: true,
-    timeScale: { timeVisible: true, secondsVisible: false, borderColor: css('--line') },
-    crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
+    timeScale: { timeVisible: true, secondsVisible: false, borderColor: css('--line'), rightOffset: +S.C.rightOffset, barSpacing: 8, minBarSpacing: 0.3, fixLeftEdge: false, fixRightEdge: false, lockVisibleTimeRangeOnResize: true, rightBarStaysOnScroll: true },
+    rightPriceScale: { borderColor: css('--line'), scaleMargins: { top: 0.1, bottom: 0.08 } },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal,
+      vertLine: { width: 1, style: LightweightCharts.LineStyle.Dashed, color: '#9598a1', labelBackgroundColor: css('--xh') },
+      horzLine: { width: 1, style: LightweightCharts.LineStyle.Dashed, color: '#9598a1', labelBackgroundColor: css('--xh') } },
+    handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
+    handleScale: { mouseWheel: S.C.zoomAnchor === 'cursor', pinch: true, axisPressedMouseMove: { time: true, price: true }, axisDoubleClickReset: { time: true, price: true } },
+    kineticScroll: { mouse: true, touch: true }
   });
   const candle = chart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
   const mkLine = (w, step) => chart.addLineSeries({ lineWidth: w, lastValueVisible: false, priceLineVisible: false, ...(step ? { lineType: LightweightCharts.LineType ? LightweightCharts.LineType.WithSteps : 1 } : {}) });
@@ -110,7 +123,9 @@
   const upd = (n, key, fn) => { if (cache[n] === key) return false; cache[n] = key; fn(); return true; };
   const fmt = v => v == null || !isFinite(v) ? 'N/A' : v.toFixed(2);
   const setStatus = t => $('status').textContent = t;
-  const symName = () => (SYMBOLS.find(s => s[1] === S.sym) || [S.sym])[0];
+  const symName = () => S.sym;
+  let ySym = ''; const usedSym = {};
+  const cands = () => { const c = (SYMBOLS.find(x => x[0] === S.sym) || SYMBOLS[0])[1], u = usedSym[S.sym]; return u ? [u, ...c.filter(x => x !== u)] : c; };
 
   function buildInfo(mode, L) {
     const sfx = L.dir === 1 ? [' (Call)', ' (Target)', ' (SL)'] : L.dir === -1 ? [' (Put)', ' (SL)', ' (Target)'] : ['', '', ''];
@@ -145,23 +160,27 @@
     const d = await r.json(); if (d.error) throw new Error(d.error);
     return d.filter((c, i, a) => i === 0 || c.time > a[i - 1].time);
   }
+  async function fetchBars(iv, range) { // Yahoo symbol na chale to bijo symbol try kare
+    let err; for (const c of cands()) { try { const d = await get(c, iv, range); if (d.length) { ySym = c; usedSym[S.sym] = c; return d; } } catch (e) { err = e; } }
+    throw err || new Error('No data');
+  }
   async function ensureZone() {
     const P = S.P;
     if (!(S.has && P.zShow) || curIv === '1d') { if (zbars.length) { zbars = []; zv++; } zKey = ''; return; }
-    const key = S.sym + '|' + curIv + '|' + P.zTf; if (key === zKey) return; zKey = key;
+    const key = ySym + '|' + curIv + '|' + P.zTf; if (key === zKey) return; zKey = key;
     if (P.zTf === curIv) zbars = bars;
-    else { try { zbars = await get(S.sym, P.zTf, RANGE[P.zTf]); } catch (e) { zbars = []; setStatus('Zone data: ' + e.message); } }
+    else { try { zbars = await get(ySym, P.zTf, RANGE[P.zTf]); } catch (e) { zbars = []; setStatus('Zone data: ' + e.message); } }
     zv++;
   }
   async function load(fit) {
     const tf = TFS.find(t => t[1] === S.tf) || TFS[1], t0 = performance.now();
     const rng = chart.timeScale().getVisibleLogicalRange(); setStatus('Loading...');
     try {
-      const [d, dd] = await Promise.all([get(S.sym, tf[1], tf[2]), tf[1] === '1d' ? null : get(S.sym, '1d', '2y')]);
+      const d = await fetchBars(tf[1], tf[2]), dd = tf[1] === '1d' ? null : await get(ySym, '1d', '2y');
       curIv = tf[1]; bars = d; daily = dd || d; zKey = ''; ver++;
       candle.setData(bars); await ensureZone(); applyAll();
-      if (fit || !rng) chart.timeScale().fitContent(); else chart.timeScale().setVisibleLogicalRange(rng);
-      setStatus(`${symName()} · ${tf[0]} · ${bars.length} candles · ${(performance.now() - t0).toFixed(0)} ms`);
+      if (fit || !rng) chart.timeScale().resetTimeScale(); else chart.timeScale().setVisibleLogicalRange(rng);
+      setStatus(`${symName()}${ySym !== cands()[0] || cands().length > 1 && ySym !== SYMBOLS.find(x => x[0] === S.sym)[1][0] ? ' (' + ySym + ')' : ''} · ${tf[0]} · ${bars.length} candles · ${(performance.now() - t0).toFixed(0)} ms`);
     } catch (e) { setStatus('Error: ' + e.message); }
   }
 
@@ -225,8 +244,48 @@
       h('button', { title: 'Remove', onclick: () => { S.has = false; save(); renderLegend(); applyAll(); } }, ico('x'))));
   }
 
+  // ---------- TradingView-like chart behaviour ----------
+  function applyChartOpts() {
+    chart.applyOptions({ handleScale: { mouseWheel: S.C.zoomAnchor === 'cursor' } });
+    chart.timeScale().applyOptions({ rightOffset: +S.C.rightOffset });
+  }
+  // Wheel zoom: right edge fixed (TradingView style) - bar spacing badlay, right edge ni jagya same rahe
+  $('chart').addEventListener('wheel', e => {
+    if (S.C.zoomAnchor !== 'right' || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    const ts = chart.timeScale(), rect = $('chart').getBoundingClientRect();
+    if (e.clientX - rect.left > rect.width - chart.priceScale('right').width()) return;
+    const r = ts.getVisibleLogicalRange(); if (!r) return;
+    e.preventDefault(); e.stopPropagation();
+    const cur = ts.width() / Math.max(1e-6, r.to - r.from);
+    ts.applyOptions({ barSpacing: Math.min(80, Math.max(0.3, cur * Math.exp(-e.deltaY * 0.0015))) });
+  }, { passive: false, capture: true });
+  // "Go to latest" button + % / log / auto buttons (TradingView jeva)
+  chart.timeScale().subscribeVisibleLogicalRangeChange(r => { $('goLatest').style.display = r && bars.length && r.to < bars.length - 1 ? 'flex' : 'none'; });
+  $('goLatest').onclick = () => chart.timeScale().scrollToRealTime();
+  let pMode = 0;
+  const markScale = () => { $('bPct').classList.toggle('on', pMode === 2); $('bLog').classList.toggle('on', pMode === 1); };
+  const setMode = m => { pMode = pMode === m ? 0 : m; chart.priceScale('right').applyOptions({ mode: pMode }); markScale(); };
+  $('bPct').onclick = () => setMode(2); $('bLog').onclick = () => setMode(1);
+  $('bAuto').onclick = () => chart.priceScale('right').applyOptions({ autoScale: true });
+  document.addEventListener('keydown', e => {
+    if (document.querySelector('.ov') || (e.target.closest && e.target.closest('input,select,textarea'))) return;
+    if (e.altKey && (e.key === 'r' || e.key === 'R')) { e.preventDefault(); pMode = 0; markScale(); chart.priceScale('right').applyOptions({ autoScale: true, mode: 0 }); chart.timeScale().resetTimeScale(); }
+    else if (e.key === 'End') chart.timeScale().scrollToRealTime();
+  });
+  function openChartSettings() {
+    modal('Chart settings', (md, close) => {
+      const draft = { ...S.C }, body = h('div', { class: 'md-b' });
+      body.append(h('div', { class: 'grp' }, 'Scales'));
+      CSET.forEach(it => body.append(h('label', { class: 'row' }, h('span', {}, it.l), control(it, draft, () => {}))));
+      md.append(body, h('div', { class: 'md-f' }, h('button', { class: 'btn', onclick: () => { Object.assign(draft, CDEF); S.C = draft; save(); applyChartOpts(); close(); } }, 'Defaults'), h('div', { class: 'sp' }),
+        h('button', { class: 'btn', onclick: close }, 'Cancel'),
+        h('button', { class: 'btn pri', onclick: () => { S.C = draft; save(); applyChartOpts(); close(); } }, 'Ok')));
+    });
+  }
+  $('cset').append(ico('gear')); $('cset').onclick = openChartSettings;
+
   // ---------- Toolbar wiring ----------
-  SYMBOLS.forEach(s => $('sym').append(h('option', { value: s[1] }, s[0]))); $('sym').value = S.sym;
+  SYMBOLS.forEach(x => $('sym').append(h('option', { value: x[0] }, x[0]))); $('sym').value = S.sym;
   $('sym').onchange = () => { S.sym = $('sym').value; save(); load(true); };
   TFS.forEach(t => $('tfs').append(h('button', { 'data-tf': t[1], onclick: () => { S.tf = t[1]; save(); markTf(); load(true); } }, t[0])));
   const markTf = () => document.querySelectorAll('#tfs button').forEach(b => b.classList.toggle('on', b.dataset.tf === S.tf));
