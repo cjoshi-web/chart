@@ -6,8 +6,8 @@
 <script>window.LightweightCharts||document.write('<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"><\/script>')</script>
 <script src="kis.js"></script>
 <style>
-:root{--bg:#0f131a;--panel:#151a22;--panel2:#1c222c;--hover:#232b37;--line:#262e3a;--text:#e3e8ef;--mute:#8794a6;--accent:#2962ff;--chart-bg:#0f131a;--grid:#19202a;--shadow:0 12px 40px rgba(0,0,0,.5)}
-[data-theme=light]{--bg:#f3f5f8;--panel:#fff;--panel2:#f0f3f7;--hover:#e6eaf0;--line:#e0e4ea;--text:#131722;--mute:#6a7485;--chart-bg:#fff;--grid:#eef1f5;--shadow:0 12px 40px rgba(20,30,50,.18)}
+:root{--bg:#0f131a;--panel:#151a22;--panel2:#1c222c;--hover:#232b37;--line:#262e3a;--text:#e3e8ef;--mute:#8794a6;--accent:#2962ff;--chart-bg:#0f131a;--grid:#19202a;--xh:#4c525e;--shadow:0 12px 40px rgba(0,0,0,.5)}
+[data-theme=light]{--bg:#f3f5f8;--panel:#fff;--panel2:#f0f3f7;--hover:#e6eaf0;--line:#e0e4ea;--text:#131722;--mute:#6a7485;--chart-bg:#fff;--grid:#eef1f5;--xh:#131722;--shadow:0 12px 40px rgba(20,30,50,.18)}
 *{box-sizing:border-box}html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column}
 svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -25,6 +25,11 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-l
 .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}.btn.pri:hover{filter:brightness(1.1)}
 #status{color:var(--mute);font-size:12px}
 #chart{flex:1;min-height:0;position:relative}
+#corner{position:absolute;right:72px;bottom:34px;z-index:3;display:flex;gap:6px;align-items:center}
+.pscale{display:flex;gap:2px;background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);border-radius:8px;padding:2px}
+.pscale button,#goLatest{background:none;border:0;color:var(--mute);font:600 11px system-ui,sans-serif;padding:4px 8px;border-radius:6px;cursor:pointer}
+.pscale button:hover,#goLatest:hover{color:var(--text);background:var(--hover)}.pscale button.on{background:var(--accent);color:#fff}
+#goLatest{display:none;align-items:center;background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);font-size:12px}
 #legend{position:absolute;top:8px;left:10px;z-index:3;max-width:min(92%,330px)}
 .lg{display:inline-flex;align-items:center;gap:4px;background:color-mix(in srgb,var(--panel) 85%,transparent);border:1px solid var(--line);border-radius:8px;padding:3px 4px 3px 10px;font-size:13px}
 .lg.off .nm{opacity:.45}
@@ -60,8 +65,9 @@ svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-l
   <div class="sp"></div>
   <span id="status">Ready</span>
   <button class="ibtn" id="refresh" title="Refresh data"></button>
+  <button class="ibtn" id="cset" title="Chart settings"></button>
   <button class="ibtn" id="theme" title="Dark / Light mode"></button>
 </header>
-<div id="chart"><div id="legend"><div id="lgRow"></div><div id="info"></div></div></div>
+<div id="chart"><div id="corner"><button id="goLatest" title="Go to latest bar (End)">Latest ▶▶</button><div class="pscale"><button id="bPct" title="Percentage scale">%</button><button id="bLog" title="Logarithmic scale">log</button><button id="bAuto" title="Auto scale (Alt+R reset)">auto</button></div></div><div id="legend"><div id="lgRow"></div><div id="info"></div></div></div>
 <script src="app.js"></script>
 </body></html>
