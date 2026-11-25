@@ -4,6 +4,7 @@
 <title>My Charts</title>
 <script src="lightweight-charts.js"></script>
 <script>window.LightweightCharts||document.write('<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"><\/script>')</script>
+<script src="kis.js"></script>
 <style>
 :root{--bg:#10141a;--panel:#171c24;--line:#262d38;--text:#d5dbe5;--mute:#7f8a9b;--up:#2fb67c;--down:#e5534b}
 *{box-sizing:border-box}html,body{height:100%;margin:0}
@@ -14,7 +15,14 @@ input,select,button{background:var(--bg);color:var(--text);border:1px solid var(
 input{width:130px}button{cursor:pointer}button:hover{border-color:var(--mute)}
 label{display:flex;align-items:center;gap:5px;color:var(--mute)}
 #status{margin-left:auto;color:var(--mute)}
-#chart{flex:1;min-height:0}
+#chart{flex:1;min-height:0;position:relative}
+details{background:var(--panel);border-bottom:1px solid var(--line);padding:6px 14px}
+summary{cursor:pointer;color:var(--mute)}
+.opts{display:flex;flex-wrap:wrap;gap:10px 16px;padding:10px 0 4px}
+.opts label{flex-direction:column;align-items:flex-start;gap:3px;font-size:12px}
+.opts input[type=number]{width:90px}.opts input[type=color]{width:46px;height:30px;padding:2px}
+.opts [disabled]{opacity:.35}
+#info{position:absolute;top:8px;left:10px;z-index:3;font-size:12px;line-height:1.5;color:var(--text);background:rgba(16,20,26,.8);padding:6px 9px;border-radius:6px;pointer-events:none}
 </style></head><body>
 <header>
   <b>My Charts</b>
@@ -23,11 +31,23 @@ label{display:flex;align-items:center;gap:5px;color:var(--mute)}
   <select id="tf" aria-label="Timeframe">
     <option value="1m|7d">1m</option><option value="5m|30d" selected>5m</option><option value="15m|60d">15m</option><option value="60m|730d">1h</option><option value="1d|5y">1D</option>
   </select>
-  <label><input type="checkbox" id="st" checked style="width:auto"> Supertrend (10, 3)</label>
   <button id="go">Load</button>
   <span id="status">Ready</span>
 </header>
-<div id="chart"></div>
+<details open><summary>Step Line (KIS v2.0)</summary>
+<div class="opts">
+  <label><span>Show</span><input type="checkbox" id="sShow" checked style="width:auto"></label>
+  <label>Box Method<select id="sMode"><option>Fixed Points</option><option>Percentage (Fixed)</option><option>Percentage (Compounding)</option><option>ATR Points</option><option>Session ATR</option><option selected>Daily ATR %</option></select></label>
+  <label>Input (Points or %)<input type="number" id="sVal" value="0.1" min="0.001" step="0.01"></label>
+  <label>ATR Length<input type="number" id="sLen" value="5" min="1" step="1"></label>
+  <label>Trading Hours<input type="number" id="sHrs" value="6.5" min="1" step="0.5"></label>
+  <label>Daily ATR Multiplier<input type="number" id="sMult" value="0.25" min="0.01" step="0.05"></label>
+  <label>Reversal Protection<input type="number" id="sProt" value="0" min="0" max="10" step="1"></label>
+  <label>Step Line Color<select id="sCol"><option>Normal Step Line</option><option>Dynamic Candles Breakout/Breakdown</option></select></label>
+  <label>Up Color<input type="color" id="sUp" value="#00bcd4"></label>
+  <label>Down Color<input type="color" id="sDn" value="#e91e63"></label>
+</div></details>
+<div id="chart"><div id="info"></div></div>
 <script>
 const chart = LightweightCharts.createChart(document.getElementById('chart'), {
   layout:{background:{color:'#10141a'},textColor:'#d5dbe5'},
@@ -38,43 +58,42 @@ const chart = LightweightCharts.createChart(document.getElementById('chart'), {
   autoSize:true
 });
 const candle = chart.addCandlestickSeries({upColor:'#2fb67c',downColor:'#e5534b',borderVisible:false,wickUpColor:'#2fb67c',wickDownColor:'#e5534b'});
-const stUp = chart.addLineSeries({color:'#2fb67c',lineWidth:2,lastValueVisible:false,priceLineVisible:false});
-const stDn = chart.addLineSeries({color:'#e5534b',lineWidth:2,lastValueVisible:false,priceLineVisible:false});
-
-// ---------- Indicators (yaha pachi KIS v2.0 port thase) ----------
-function supertrend(d, period=10, mult=3){
-  const n=d.length, atr=new Array(n).fill(null), up=[], dn=[];
-  let prevClose=null, rma=null, trSum=0, fu=null, fl=null, dir=1;
-  for(let i=0;i<n;i++){
-    const c=d[i], tr=prevClose==null?c.high-c.low:Math.max(c.high-c.low,Math.abs(c.high-prevClose),Math.abs(c.low-prevClose));
-    if(i<period){trSum+=tr; if(i===period-1) rma=trSum/period;} else rma=(rma*(period-1)+tr)/period;
-    prevClose=c.close;
-    if(rma==null) continue;
-    const hl2=(c.high+c.low)/2, bu=hl2+mult*rma, bl=hl2-mult*rma, pc=d[i-1]?d[i-1].close:c.close;
-    fu=(fu==null||bu<fu||pc>fu)?bu:fu;
-    fl=(fl==null||bl>fl||pc<fl)?bl:fl;
-    if(dir===1 && c.close<fl) dir=-1; else if(dir===-1 && c.close>fu) dir=1;
-    if(dir===1){up.push({time:c.time,value:fl});dn.push({time:c.time});}
-    else{dn.push({time:c.time,value:fu});up.push({time:c.time});}
-  }
-  return {up,dn};
-}
-
+const stepSeries = chart.addLineSeries({lineWidth:3,lineType:(LightweightCharts.LineType?LightweightCharts.LineType.WithSteps:1),lastValueVisible:false,priceLineVisible:false});
+let bars=[], daily=[];
 const $=id=>document.getElementById(id);
+const fmt=v=>v==null||!isFinite(v)?'N/A':v.toFixed(2);
+function opts(){return{mode:$('sMode').value,value:+$('sVal').value,atrLen:Math.max(1,+$('sLen').value|0),hours:+$('sHrs').value||6.5,mult:+$('sMult').value,protect:Math.max(0,+$('sProt').value|0),colorMode:$('sCol').value,up:$('sUp').value,down:$('sDn').value};}
+function toggles(){const m=$('sMode').value;
+  $('sVal').disabled=!['Fixed Points','Percentage (Fixed)','Percentage (Compounding)'].includes(m);
+  $('sLen').disabled=!['ATR Points','Session ATR','Daily ATR %'].includes(m);
+  $('sHrs').disabled=m!=='Session ATR'; $('sMult').disabled=m!=='Daily ATR %';}
+function draw(){
+  toggles();
+  if(!bars.length||!$('sShow').checked){stepSeries.setData([]);$('info').textContent='';return;}
+  const r=KIS.stepLine(bars,daily,opts()), L=r.last;
+  stepSeries.setData(r.points);
+  const sfx=L.dir===1?[' (Call)',' (Target)',' (SL)']:L.dir===-1?[' (Put)',' (SL)',' (Target)']:['','',''];
+  $('info').innerHTML=`Box: ${$('sMode').value}`+(L.master!=null?` | Master ATR (D): ${fmt(L.master)}`:'')+
+    `<br>Brick: ${fmt(L.step)}${L.step&&L.level?' ('+(L.step/L.level*100).toFixed(2)+'%)':''}`+
+    `<br>Level: ${fmt(L.level)}${sfx[0]}<br>Next Up: ${fmt(L.up)}${sfx[1]}<br>Next Down: ${fmt(L.down)}${sfx[2]}`;
+}
+async function get(symbol,interval,range){
+  const r=await fetch(`/api/candles?symbol=${encodeURIComponent(symbol)}&interval=${interval}&range=${range}`);
+  const d=await r.json(); if(d.error) throw new Error(d.error);
+  return d.filter((c,i,a)=>i===0||c.time>a[i-1].time);
+}
 async function load(){
   const [interval,range]=$('tf').value.split('|'), symbol=$('sym').value.trim();
   $('status').textContent='Loading...'; const t0=performance.now();
   try{
-    const r=await fetch(`/api/candles?symbol=${encodeURIComponent(symbol)}&interval=${interval}&range=${range}`);
-    const d=await r.json(); if(d.error) throw new Error(d.error);
-    const t1=performance.now();
-    candle.setData(d);
-    if($('st').checked){const s=supertrend(d);stUp.setData(s.up);stDn.setData(s.dn);}else{stUp.setData([]);stDn.setData([]);}
-    chart.timeScale().fitContent();
-    $('status').textContent=`${symbol} | ${d.length} candles | data ${(t1-t0).toFixed(0)} ms, total ${(performance.now()-t0).toFixed(0)} ms`;
+    const [d,dd]=await Promise.all([get(symbol,interval,range), interval==='1d'?null:get(symbol,'1d','2y')]);
+    bars=d; daily=dd||d;
+    candle.setData(bars); draw(); chart.timeScale().fitContent();
+    $('status').textContent=`${symbol} | ${bars.length} candles | ${(performance.now()-t0).toFixed(0)} ms`;
   }catch(e){$('status').textContent='Error: '+e.message;}
 }
-$('go').onclick=load; $('tf').onchange=load; $('st').onchange=load;
+$('go').onclick=load; $('tf').onchange=load;
+document.querySelectorAll('.opts input,.opts select').forEach(e=>{e.oninput=draw;e.onchange=draw;});
 $('sym').addEventListener('keydown',e=>{if(e.key==='Enter')load();});
 load();
 </script></body></html>
