@@ -7,8 +7,9 @@ export default {
         const q = u.searchParams, sym = encodeURIComponent(q.get("symbol") || "^NSEI");
         const url = "https://query1.finance.yahoo.com/v8/finance/chart/" + sym + "?interval=" + (q.get("interval") || "5m") + "&range=" + (q.get("range") || "5d");
         const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-        if (!r.ok) throw new Error("Yahoo error " + r.status);
-        const j = await r.json();
+        const j = await r.json().catch(() => ({}));
+        const yerr = j.chart && j.chart.error;
+        if (!r.ok || yerr) throw new Error("Yahoo: " + (yerr && yerr.description ? yerr.description : "HTTP " + r.status));
         const res = j.chart && j.chart.result && j.chart.result[0];
         if (!res) throw new Error("No data for symbol");
         const off = res.meta.gmtoffset || 0, t = res.timestamp || [], x = res.indicators.quote[0], out = [];
