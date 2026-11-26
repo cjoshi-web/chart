@@ -20,38 +20,51 @@
   const ico = n => { const s = document.createElement('span'); s.style.display = 'flex'; s.innerHTML = `<svg viewBox="0 0 24 24">${ICON[n]}</svg>`; return s; };
 
   // Indicator settings schema (tab: i = Inputs, s = Style). Naya features ahiya add thase.
+  const B = (k, l, d, x = {}) => ({ k, t: 'bool', l, d, tab: 'i', ...x });
+  const Sel = (k, l, o, d, x = {}) => ({ k, t: 'select', l, o, d, tab: 'i', ...x });
+  const Num = (k, l, d, min, max, step, x = {}) => ({ k, t: 'num', l, d, min, max, step, tab: 'i', ...x });
+  const Col = (k, l, d) => ({ k, t: 'color', l, d, tab: 's' });
   const MODES = ['Fixed Points', 'Percentage (Fixed)', 'Percentage (Compounding)', 'ATR Points', 'Session ATR', 'Daily ATR %'];
+  const SRC = KIS.srcNames, MV = KIS.maTypes.map(m => [m, m]);
+  const CM = ['None', 'As Per Step Line', 'As Per Step Line Breakout/Breakdown', 'RSI', 'Supertrend 1 & 2', 'HalfTrend', 'Smart EMA'];
+  const isST = v => v.cMode === 'Supertrend 1 & 2', isHT = v => v.cMode === 'HalfTrend';
   const SCHEMA = [
+    { id: 'src', group: 'Source Data', items: [
+      Sel('sSrc', 'Step Data Source', SRC, 'Real Price', { tip: 'Step line kaya price par chale: Real Price, Heikin Ashi ke moving average.' }),
+      Num('sSrcLen', 'Source Length', 9, 1, 500, 1, { en: v => v.sSrc !== 'Real Price' && v.sSrc !== 'Chart Native' && v.sSrc !== 'Heikin Ashi' }) ] },
     { id: 'step', group: 'Dynamic Step Line', items: [
-      { k: 'sShow', t: 'bool', l: 'Show Step Line', d: true, tab: 'i' },
-      { k: 'sMode', t: 'select', l: 'Box Method', o: MODES, d: 'Daily ATR %', tab: 'i' },
-      { k: 'sVal', t: 'num', l: 'Input (Points or %)', d: 0.1, min: 0.001, step: 0.01, tab: 'i', en: v => ['Fixed Points', 'Percentage (Fixed)', 'Percentage (Compounding)'].includes(v.sMode) },
-      { k: 'sLen', t: 'num', l: 'ATR Length', d: 5, min: 1, step: 1, tab: 'i', en: v => ['ATR Points', 'Session ATR', 'Daily ATR %'].includes(v.sMode) },
-      { k: 'sHrs', t: 'num', l: 'Trading Hours', d: 6.5, min: 1, step: 0.5, tab: 'i', en: v => v.sMode === 'Session ATR' },
-      { k: 'sMult', t: 'num', l: 'Daily ATR Multiplier', d: 0.25, min: 0.01, step: 0.05, tab: 'i', en: v => v.sMode === 'Daily ATR %' },
-      { k: 'sProt', t: 'num', l: 'Step Reversal Protection (Bricks)', d: 0, min: 0, max: 10, step: 1, tab: 'i' },
-      { k: 'sCol', t: 'select', l: 'Step Line Color', o: ['Normal Step Line', 'Dynamic Candles Breakout/Breakdown'], d: 'Normal Step Line', tab: 'i' },
-      { k: 'sUp', t: 'color', l: 'Up Color', d: '#00bcd4', tab: 's' },
-      { k: 'sDn', t: 'color', l: 'Down Color', d: '#e91e63', tab: 's' } ] },
+      B('sShow', 'Show Step Line', true),
+      Sel('sMode', 'Box Method', MODES, 'Daily ATR %'),
+      Num('sVal', 'Input (Points or %)', 0.1, 0.001, 100000, 0.01, { en: v => ['Fixed Points', 'Percentage (Fixed)', 'Percentage (Compounding)'].includes(v.sMode) }),
+      Num('sLen', 'ATR Length', 5, 1, 200, 1, { en: v => ['ATR Points', 'Session ATR', 'Daily ATR %'].includes(v.sMode) }),
+      Num('sHrs', 'Trading Hours', 6.5, 1, 24, 0.5, { en: v => v.sMode === 'Session ATR' }),
+      Num('sMult', 'Daily ATR Multiplier', 0.25, 0.01, 10, 0.05, { en: v => v.sMode === 'Daily ATR %', tip: '0.25 = roj ni average range na ~4 bricks.' }),
+      Num('sProt', 'Step Reversal Protection (Bricks)', 0, 0, 10, 1, { tip: '0 = turant color change. 1 = 2 opposite bricks joiye.' }),
+      Sel('sCol', 'Step Line Color', ['Normal Step Line', 'Dynamic Candles Breakout/Breakdown'], 'Normal Step Line'),
+      Col('sUp', 'Up Color', '#00bcd4'), Col('sDn', 'Down Color', '#e91e63') ] },
+    { id: 'cand', group: 'Candle Colors', items: [
+      Sel('cMode', 'Candle Colors', CM, 'Smart EMA', { tip: 'None = normal candles. Baki modes candle ne indicator mujab rang aape.' }),
+      Col('cUp', 'Candle Up Color', '#00ff00'), Col('cDn', 'Candle Down Color', '#ff0000'), Col('cNe', 'Candle Neutral Color', '#9c27b0') ] },
+    { id: 'st', group: 'Supertrend 1 & 2 (for candle colors)', items: [
+      Num('st1Len', 'Supertrend 1 ATR Length', 10, 1, 200, 1, { en: isST }), Num('st1Mul', 'Supertrend 1 Multiplier', 1.5, 0.1, 20, 0.1, { en: isST }),
+      Num('st2Len', 'Supertrend 2 ATR Length', 10, 1, 200, 1, { en: isST }), Num('st2Mul', 'Supertrend 2 Multiplier', 3, 0.1, 20, 0.1, { en: isST }) ] },
+    { id: 'ht', group: 'HalfTrend (for candle colors)', items: [
+      Sel('hSrc', 'HalfTrend Source', SRC, 'Real Price', { en: isHT }), Num('hLen', 'Source Length', 9, 1, 500, 1, { en: isHT }), Num('hAmp', 'Amplitude', 2, 1, 50, 1, { en: isHT }) ] },
     { id: 'ema', group: 'Smart EMA & Cloud', items: [
-      { k: 'eSmart', t: 'bool', l: 'Show Smart EMA', d: true, tab: 'i' },
-      { k: 'eSLen', t: 'num', l: 'Smart EMA Length (Base TF)', d: 5, min: 1, step: 1, tab: 'i' },
-      { k: 'eBase', t: 'select', n: 1, l: 'Smart EMA Base Timeframe', o: [[5, '5m'], [15, '15m'], [30, '30m'], [60, '1h']], d: 30, tab: 'i' },
-      { k: 'eShow', t: 'bool', l: 'Show EMA', d: false, tab: 'i' },
-      { k: 'eType', t: 'select', l: 'MV Type', o: KIS.maTypes.map(m => [m, m.toUpperCase()]), d: 'ema', tab: 'i' },
-      { k: 'eLen', t: 'num', l: 'Length', d: 10, min: 1, step: 1, tab: 'i' },
-      { k: 'eCloud', t: 'bool', l: 'Show Cloud (Smart EMA & EMA)', d: true, tab: 'i' },
-      { k: 'eSCol', t: 'color', l: 'Smart EMA Color', d: '#2962ff', tab: 's' },
-      { k: 'eCol', t: 'color', l: 'EMA Color', d: '#ff0000', tab: 's' } ] },
+      B('eSmart', 'Show Smart EMA', true),
+      Num('eSLen', 'Smart EMA Length (Base TF)', 5, 1, 500, 1),
+      Sel('eBase', 'Smart EMA Base Timeframe', [[5, '5m'], [15, '15m'], [30, '30m'], [60, '1h']], 30, { n: 1 }),
+      B('eShow', 'Show EMA', false),
+      Sel('eType', 'MV Type', MV, 'EMA', { tip: '37 types: EMA, SMA, HMA, JMA, KAMA, T3, kernels vagere.' }),
+      Num('eLen', 'Length', 10, 1, 500, 1),
+      B('eCloud', 'Show Cloud (Smart EMA & EMA)', true),
+      Col('eSCol', 'Smart EMA Color', '#2962ff'), Col('eCol', 'EMA Color', '#ff0000') ] },
     { id: 'zone', group: 'Institution Zone', items: [
-      { k: 'zShow', t: 'bool', l: 'Show Institution Zone', d: true, tab: 'i' },
-      { k: 'zTf', t: 'select', l: 'Zone Timeframe', o: [['5m', '5m'], ['15m', '15m'], ['30m', '30m'], ['60m', '1h']], d: '5m', tab: 'i' },
-      { k: 'zTop', t: 'num', l: 'Fib Top', d: 0.56, min: 0, max: 1, step: 0.01, tab: 'i' },
-      { k: 'zBot', t: 'num', l: 'Fib Bottom', d: 0.44, min: 0, max: 1, step: 0.01, tab: 'i' },
-      { k: 'zCol', t: 'color', l: 'Zone Color', d: '#ff0000', tab: 's' },
-      { k: 'zOp', t: 'num', l: 'Zone Opacity (0-1)', d: 0.7, min: 0, max: 1, step: 0.05, tab: 's' } ] },
-    { id: 'dash', group: 'Dashboard', items: [
-      { k: 'dShow', t: 'bool', l: 'Show Dashboard', d: true, tab: 'i' } ] }
+      B('zShow', 'Show Institution Zone', true),
+      Sel('zTf', 'Zone Timeframe', [['5m', '5m'], ['15m', '15m'], ['30m', '30m'], ['60m', '1h']], '5m'),
+      Num('zTop', 'Fib Top', 0.56, 0, 1, 0.01), Num('zBot', 'Fib Bottom', 0.44, 0, 1, 0.01),
+      Col('zCol', 'Zone Color', '#ff0000'), Num('zOp', 'Zone Opacity (0-1)', 0.7, 0, 1, 0.05, { tab: 's' }) ] },
+    { id: 'dash', group: 'Dashboard', items: [B('dShow', 'Show Dashboard', true)] }
   ];
   const DEF = {}; SCHEMA.forEach(g => g.items.forEach(i => DEF[i.k] = i.d));
   const keysOf = id => SCHEMA.find(g => g.id === id).items.map(i => i.k);
@@ -65,6 +78,7 @@
   let S = { theme: 'dark', sym: 'Nifty 50', tf: '5m', has: true, vis: true, P: { ...DEF }, C: { ...CDEF } };
   try { const j = JSON.parse(localStorage.getItem('kisChart1')); if (j) S = { ...S, ...j, P: { ...DEF, ...(j.P || {}) }, C: { ...CDEF, ...(j.C || {}) } }; } catch (e) {}
   if (!SYMBOLS.some(x => x[0] === S.sym)) S.sym = 'Nifty 50';
+  if (!KIS.maTypes.includes(S.P.eType)) S.P.eType = KIS.maTypes.find(x => x.toUpperCase() === String(S.P.eType).toUpperCase()) || 'EMA';
   const save = () => { try { localStorage.setItem('kisChart1', JSON.stringify(S)); } catch (e) {} };
   document.documentElement.dataset.theme = S.theme;
 
@@ -135,18 +149,16 @@
   }
   function applyAll() {
     const P = S.P, on = S.has && S.vis, ts = chart.timeScale(), rng = ts.getVisibleLogicalRange();
-    const key = id => ver + '|' + on + '|' + keysOf(id).map(k => P[k]).join('|');
-    let ch = false;
-    ch = upd('step', key('step'), () => {
-      if (!on || !P.sShow || !bars.length) { stepSeries.setData([]); infoHtml = ''; return; }
-      const r = KIS.stepLine(bars, daily, { mode: P.sMode, value: P.sVal, atrLen: Math.max(1, P.sLen | 0), hours: P.sHrs || 6.5, mult: P.sMult, protect: Math.max(0, P.sProt | 0), colorMode: P.sCol, up: P.sUp, down: P.sDn });
-      stepSeries.setData(r.points); infoHtml = buildInfo(P.sMode, r.last);
-    }) || ch;
-    ch = upd('ema', key('ema'), () => {
-      if (!on || !bars.length) { smartSeries.setData([]); emaSeries.setData([]); cloudData = []; return; }
-      const r = KIS.smartCloud(bars, { sLen: Math.max(1, P.eSLen | 0), baseMin: +P.eBase, tfMin: TFMIN[curIv] || 1, type: P.eType, len: Math.max(1, P.eLen | 0) });
-      smartSeries.setData(P.eSmart ? r.smart : []); emaSeries.setData(P.eShow ? r.ema : []); cloudData = P.eCloud ? r.cloud : [];
-    }) || ch;
+    const calcKeys = Object.keys(DEF).filter(k => k[0] !== 'z' && k !== 'dShow');
+    const ch = upd('calc', ver + '|' + on + '|' + calcKeys.map(k => P[k]).join('|'), () => {
+      const R = on && bars.length ? KIS.compute(bars, daily, P, TFMIN[curIv] || 1) : null, cl = R && R.colors;
+      candle.setData(cl ? bars.map((b, i) => ({ ...b, color: cl[i], borderColor: cl[i], wickColor: cl[i] })) : bars);
+      stepSeries.setData(R && P.sShow && R.step ? R.step.points : []);
+      smartSeries.setData(R && P.eSmart && R.ema ? R.ema.sPts : []);
+      emaSeries.setData(R && P.eShow && R.ema ? R.ema.ePts : []);
+      cloudData = R && P.eCloud && R.ema ? R.ema.cloud : [];
+      infoHtml = R && P.sShow && R.step ? buildInfo(P.sMode, R.step.last) : '';
+    });
     upd('zone', ver + '|' + zv + '|' + on + '|' + [P.zShow, P.zTop, P.zBot].join('|'), () => {
       zoneRects = on && P.zShow && curIv !== '1d' && zbars.length && bars.length ? KIS.institutionZones(zbars, bars, { top: +P.zTop, bottom: +P.zBot }) : [];
     });
@@ -178,52 +190,68 @@
     try {
       const d = await fetchBars(tf[1], tf[2]), dd = tf[1] === '1d' ? null : await get(ySym, '1d', '2y');
       curIv = tf[1]; bars = d; daily = dd || d; zKey = ''; ver++;
-      candle.setData(bars); await ensureZone(); applyAll();
+      await ensureZone(); applyAll();
       if (fit || !rng) chart.timeScale().resetTimeScale(); else chart.timeScale().setVisibleLogicalRange(rng);
       setStatus(`${symName()}${ySym !== cands()[0] || cands().length > 1 && ySym !== SYMBOLS.find(x => x[0] === S.sym)[1][0] ? ' (' + ySym + ')' : ''} · ${tf[0]} · ${bars.length} candles · ${(performance.now() - t0).toFixed(0)} ms`);
     } catch (e) { setStatus('Error: ' + e.message); }
   }
 
   // ---------- Popups ----------
-  function modal(title, build) {
+  function modal(title, build, onDismiss) {
     const ov = h('div', { class: 'ov' }), md = h('div', { class: 'md' });
-    const close = () => { ov.remove(); document.removeEventListener('keydown', esc); };
-    const esc = e => { if (e.key === 'Escape') close(); };
-    ov.onmousedown = e => { if (e.target === ov) close(); };
+    const finish = () => { ov.remove(); document.removeEventListener('keydown', esc); };
+    const dismiss = () => { finish(); if (onDismiss) onDismiss(); };
+    const esc = e => { if (e.key === 'Escape') dismiss(); };
+    ov.onmousedown = e => { if (e.target === ov) dismiss(); };
     document.addEventListener('keydown', esc);
-    md.append(h('div', { class: 'md-h' }, h('span', {}, title), h('button', { onclick: close, title: 'Close' }, ico('x'))));
-    build(md, close); ov.append(md); document.body.append(ov);
+    md.append(h('div', { class: 'md-h' }, h('span', {}, title), h('button', { onclick: dismiss, title: 'Close' }, ico('x'))));
+    build(md, finish, dismiss); ov.append(md); document.body.append(ov);
   }
   function control(it, draft, onChange) {
-    let c;
-    if (it.t === 'bool') { c = h('input', { type: 'checkbox' }); c.checked = !!draft[it.k]; c.onchange = () => { draft[it.k] = c.checked; onChange(); }; }
-    else if (it.t === 'select') { c = h('select', { class: 'sel' }); it.o.forEach(o => { const [v, l] = Array.isArray(o) ? o : [o, o]; c.append(h('option', { value: v }, l)); });
-      c.value = String(draft[it.k]); c.onchange = () => { draft[it.k] = it.n ? +c.value : c.value; onChange(); }; }
-    else if (it.t === 'num') { c = h('input', { type: 'number', min: it.min, max: it.max, step: it.step }); c.value = draft[it.k];
-      c.oninput = () => { const v = parseFloat(c.value); if (!isNaN(v)) { draft[it.k] = v; onChange(); } }; }
-    else { c = h('input', { type: 'color' }); c.value = draft[it.k]; c.oninput = () => { draft[it.k] = c.value; }; }
-    return c;
+    let el, inp;
+    if (it.t === 'bool') { inp = h('input', { type: 'checkbox' }); inp.checked = !!draft[it.k]; inp.onchange = () => { draft[it.k] = inp.checked; onChange(); }; el = h('label', { class: 'sw' }, inp, h('span')); }
+    else if (it.t === 'select') { inp = el = h('select', { class: 'sel' }); it.o.forEach(o => { const [v, l] = Array.isArray(o) ? o : [o, o]; inp.append(h('option', { value: v }, l)); });
+      inp.value = String(draft[it.k]); inp.onchange = () => { draft[it.k] = it.n ? +inp.value : inp.value; onChange(); }; }
+    else if (it.t === 'num') {
+      inp = h('input', { type: 'number', min: it.min, max: it.max, step: it.step, inputmode: 'decimal' }); inp.value = draft[it.k];
+      const st = it.step || 1, set = v => { v = Math.min(it.max ?? Infinity, Math.max(it.min ?? -Infinity, v)); inp.value = +v.toFixed(4); draft[it.k] = +inp.value; onChange(); };
+      inp.oninput = () => { const v = parseFloat(inp.value); if (!isNaN(v)) { draft[it.k] = v; onChange(); } };
+      el = h('div', { class: 'stp' }, h('button', { type: 'button', onclick: () => set((+inp.value || 0) - st) }, '−'), inp, h('button', { type: 'button', onclick: () => set((+inp.value || 0) + st) }, '+'));
+    } else { inp = h('input', { type: 'color' }); inp.value = draft[it.k]; const tx = h('span', {}, draft[it.k]);
+      inp.oninput = () => { draft[it.k] = inp.value; tx.textContent = inp.value; onChange(); }; el = h('label', { class: 'clr' }, tx, inp); }
+    el.inp = inp; return el;
   }
   function openSettings() {
-    modal('Keep It Simple v2.0', (md, close) => {
-      const draft = { ...S.P }; let tab = 'i'; const body = h('div', { class: 'md-b' }), rows = [];
-      const tabs = h('div', { class: 'tabs' }), tI = h('button', {}, 'Inputs'), tS = h('button', {}, 'Style');
-      const refreshEn = () => rows.forEach(r => { const d = r.it.en && !r.it.en(draft); r.row.classList.toggle('dis', !!d); r.c.disabled = !!d; });
+    const orig = { ...S.P }; let tab = 'i', q = '', timer;
+    const live = () => { clearTimeout(timer); timer = setTimeout(async () => { await ensureZone(); applyAll(); }, 140); };
+    const revert = () => { S.P = orig; save(); ensureZone().then(applyAll); };
+    modal('Keep It Simple v2.0', (md, finish, dismiss) => {
+      const body = h('div', { class: 'md-b' }), rows = [], open = {};
+      const tI = h('button', {}, 'Inputs'), tS = h('button', {}, 'Style');
+      const search = h('input', { class: 'sel srch', type: 'search', placeholder: 'Search settings…' });
+      const refreshEn = () => rows.forEach(r => { const d = r.it.en && !r.it.en(S.P); r.row.classList.toggle('dis', !!d); r.c.inp.disabled = !!d; });
       const render = () => {
         tI.className = tab === 'i' ? 'on' : ''; tS.className = tab === 's' ? 'on' : ''; body.innerHTML = ''; rows.length = 0;
-        SCHEMA.forEach(g => { const items = g.items.filter(i => i.tab === tab); if (!items.length) return;
-          body.append(h('div', { class: 'grp' }, g.group));
-          items.forEach(it => { const c = control(it, draft, refreshEn), row = h('label', { class: 'row' }, h('span', {}, it.l), c); rows.push({ it, c, row }); body.append(row); }); });
+        SCHEMA.forEach(g => {
+          const items = g.items.filter(i => i.tab === tab && (!q || (i.l + ' ' + g.group).toLowerCase().includes(q)));
+          if (!items.length) return;
+          const closed = !q && open[g.id] === false;
+          body.append(h('div', { class: 'grp' + (closed ? ' c' : ''), onclick: () => { open[g.id] = closed; render(); } }, h('span', {}, g.group), h('i', {}, '▾')));
+          if (!closed) items.forEach(it => {
+            const c = control(it, S.P, () => { refreshEn(); save(); live(); });
+            const row = h('div', { class: 'row' }, h('div', { class: 'lb' }, h('span', {}, it.l), it.tip ? h('small', {}, it.tip) : ''), c);
+            rows.push({ it, c, row }); body.append(row);
+          });
+        });
         refreshEn();
       };
+      search.oninput = () => { q = search.value.trim().toLowerCase(); render(); };
       tI.onclick = () => { tab = 'i'; render(); }; tS.onclick = () => { tab = 's'; render(); };
-      tabs.append(tI, tS);
-      const foot = h('div', { class: 'md-f' },
-        h('button', { class: 'btn', onclick: () => { Object.assign(draft, DEF); render(); } }, 'Defaults'), h('div', { class: 'sp' }),
-        h('button', { class: 'btn', onclick: close }, 'Cancel'),
-        h('button', { class: 'btn pri', onclick: async () => { S.P = draft; save(); close(); await ensureZone(); applyAll(); } }, 'Ok'));
-      md.append(tabs, body, foot); render();
-    });
+      md.append(h('div', { class: 'srchw' }, search), h('div', { class: 'tabs' }, tI, tS), body,
+        h('div', { class: 'md-f' }, h('button', { class: 'btn', onclick: () => { Object.assign(S.P, DEF); save(); render(); live(); } }, 'Defaults'), h('div', { class: 'sp' }),
+          h('button', { class: 'btn', onclick: dismiss }, 'Cancel'), h('button', { class: 'btn pri', onclick: () => { save(); finish(); } }, 'Ok')));
+      render();
+    }, revert);
   }
   function openIndicators() {
     modal('Indicators', (md, close) => {
