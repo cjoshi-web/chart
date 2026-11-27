@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Shikhar</title>
+<title>My Charts</title>
 <script src="lightweight-charts.js"></script>
 <script>window.LightweightCharts||document.write('<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"><\/script>')</script>
 <script src="kis.js"></script>
@@ -95,9 +95,25 @@ html,body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent}body{
   .md{width:100%;max-height:92dvh;border-radius:20px 20px 0 0;animation:sheet .22s ease}
   .row{min-height:44px}.row .sel{max-width:170px}.row .lb small{max-width:180px}
 }
+
+/* ---- drawing tools + timeframe popup ---- */
+#chart{touch-action:none}
+#tools{position:absolute;left:8px;bottom:34px;z-index:4;display:flex;gap:2px;background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:12px;padding:3px}
+#tools button{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:none;border:0;border-radius:9px;color:var(--mute);cursor:pointer}
+#tools button:hover{background:var(--hover);color:var(--text)}#tools button.on{background:var(--accent);color:#fff}
+#tools #tLong:not(.on){color:#26a69a}#tools #tShort:not(.on){color:#ef5350}
+#dtool{position:absolute;z-index:4;display:none;background:color-mix(in srgb,var(--panel) 92%,transparent);border:1px solid var(--line);border-radius:10px;padding:3px}
+#dtool button{width:36px;height:34px;display:flex;align-items:center;justify-content:center;background:none;border:0;border-radius:8px;color:#ef5350;cursor:pointer}#dtool button:hover{background:var(--hover)}
+.seg button.more{padding:5px 8px;display:flex;align-items:center}.seg button.more svg{width:16px;height:16px}
+.tfadd{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.tfadd .srch{flex:1;min-width:0;width:auto}.err{color:#ef5350;flex-basis:100%}
+.grp.nc{cursor:default}
+.item.on{background:var(--hover);font-weight:700}
+.acts{display:flex;gap:2px;align-items:center}
+.star{background:none;border:0;color:var(--mute);font-size:18px;cursor:pointer;padding:4px 6px;border-radius:6px;display:flex}.star:hover{background:var(--hover)}.star.on{color:#f5a623}.star svg{width:15px;height:15px}
+@media (max-width:700px){#tools{bottom:30px}#tools button{width:40px;height:40px}}
 </style></head><body>
 <header class="tb">
-  <div class="brand"><svg viewBox="0 0 24 24" style="color:#6c8cff"><path d="M3 17l5-6 4 3 8-9"/><path d="M15 5h5v5"/></svg><b>Shikhar</b></div>
+  <div class="brand"><svg viewBox="0 0 24 24" style="color:#6c8cff"><path d="M3 17l5-6 4 3 8-9"/><path d="M15 5h5v5"/></svg><b>My Charts</b></div>
   <select id="sym" class="sel" aria-label="Symbol"></select>
   <div class="seg" id="tfs"></div>
   <button class="btn" id="indBtn"><span id="icoAct"></span><span class="t">Indicators</span></button>
@@ -107,6 +123,6 @@ html,body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent}body{
   <button class="ibtn" id="cset" title="Chart settings"></button>
   <button class="ibtn" id="theme" title="Dark / Light mode"></button>
 </header>
-<div id="chart"><div id="corner"><button id="goLatest" title="Go to latest bar (End)">Latest ▶▶</button><div class="pscale"><button id="bPct" title="Percentage scale">%</button><button id="bLog" title="Logarithmic scale">log</button><button id="bAuto" title="Auto scale (Alt+R reset)">auto</button></div></div><div id="legend"><div id="lgRow"></div><div id="info"></div></div></div>
+<div id="chart"><div id="corner"><button id="goLatest" title="Go to latest bar (End)">Latest ▶▶</button><div class="pscale"><button id="bPct" title="Percentage scale">%</button><button id="bLog" title="Logarithmic scale">log</button><button id="bAuto" title="Auto scale (Alt+R reset)">auto</button></div></div><div id="tools"><button id="tCur" data-tool="" class="on" title="Cursor"></button><button id="tLong" data-tool="long" title="Long position"></button><button id="tShort" data-tool="short" title="Short position"></button></div><div id="dtool"><button id="dDel" title="Delete (Del)"></button></div><div id="legend"><div id="lgRow"></div><div id="info"></div></div></div>
 <script src="app.js"></script>
 </body></html>
