@@ -6,7 +6,7 @@
   const SYMBOLS = [['Nifty 50', ['^NSEI']], ['Sensex', ['^BSESN']], ['Bank Nifty', ['^NSEBANK']], ['XAUUSD', ['XAUUSD=X', 'GC=F']], ['BTCUSD', ['BTC-USD']]]; // naam, Yahoo symbols (pehla na chale to bijo try thay)
   const TFS = [['1m', '1m', '7d'], ['5m', '5m', '30d'], ['15m', '15m', '60d'], ['1h', '60m', '730d'], ['1D', '1d', '5y']];
   const TFMIN = { '1m': 1, '5m': 5, '15m': 15, '30m': 30, '60m': 60, '1d': 1440 };
-  const RANGE = { '1m': '7d', '5m': '30d', '15m': '60d', '30m': '60d', '60m': '730d' };
+  const RANGE = { '1m': '7d', '5m': '60d', '15m': '60d', '30m': '60d', '60m': '730d' };
   const ICON = {
     eye: '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>',
     eyeoff: '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><path d="M3 3l18 18"/>',
@@ -15,6 +15,9 @@
     sun: '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>',
     moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
     act: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+    chev: '<path d="M6 9l6 6 6-6"/>',
+    cursor: '<path d="M5 3l14 7-6 2-2 6z"/>', long: '<path d="M12 19V5M5 12l7-7 7 7"/>', short: '<path d="M12 5v14M5 12l7 7 7-7"/>',
+    trash: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v6M14 10v6"/>',
     refresh: '<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/>'
   };
   const ico = n => { const s = document.createElement('span'); s.style.display = 'flex'; s.innerHTML = `<svg viewBox="0 0 24 24">${ICON[n]}</svg>`; return s; };
@@ -75,9 +78,10 @@
     { k: 'rightOffset', t: 'num', l: 'Right margin (bars)', d: 10, min: 0, max: 200, step: 1 }
   ];
   const CDEF = {}; CSET.forEach(i => CDEF[i.k] = i.d);
-  let S = { theme: 'dark', sym: 'Nifty 50', tf: '5m', has: true, vis: true, P: { ...DEF }, C: { ...CDEF } };
+  let S = { theme: 'dark', sym: 'Nifty 50', tf: '5m', fav: ['1m', '5m', '15m', '60m', '1D'], custom: [], draw: {}, has: true, vis: true, P: { ...DEF }, C: { ...CDEF } };
   try { const j = JSON.parse(localStorage.getItem('kisChart1')); if (j) S = { ...S, ...j, P: { ...DEF, ...(j.P || {}) }, C: { ...CDEF, ...(j.C || {}) } }; } catch (e) {}
   if (!SYMBOLS.some(x => x[0] === S.sym)) S.sym = 'Nifty 50';
+  { const t = parseTF(S.tf); S.tf = t ? t.id : '5m'; if (!Array.isArray(S.fav)) S.fav = ['1m', '5m', '15m', '60m', '1D']; if (!Array.isArray(S.custom)) S.custom = []; if (!S.draw) S.draw = {}; }
   if (!KIS.maTypes.includes(S.P.eType)) S.P.eType = KIS.maTypes.find(x => x.toUpperCase() === String(S.P.eType).toUpperCase()) || 'EMA';
   const save = () => { try { localStorage.setItem('kisChart1', JSON.stringify(S)); } catch (e) {} };
   document.documentElement.dataset.theme = S.theme;
@@ -105,7 +109,7 @@
   const mkLine = (w, step) => chart.addLineSeries({ lineWidth: w, lastValueVisible: false, priceLineVisible: false, ...(step ? { lineType: LightweightCharts.LineType ? LightweightCharts.LineType.WithSteps : 1 } : {}) });
   const stepSeries = mkLine(3, true), smartSeries = mkLine(2), emaSeries = mkLine(1);
 
-  class Layer { constructor(fn) { this.fn = fn; this.v = { zOrder: () => 'bottom', renderer: () => ({ draw: t => this.fn(t) }) }; }
+  class Layer { constructor(fn, z = 'bottom') { this.fn = fn; this.v = { zOrder: () => z, renderer: () => ({ draw: t => this.fn(t) }) }; }
     attached(p) { this.p = p; } detached() {} updateAllViews() {} paneViews() { return [this.v]; } refresh() { this.p && this.p.requestUpdate(); } }
   let cloudData = [], zoneRects = [];
   const rgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${n >> 8 & 255},${n & 255},${a})`; };
@@ -132,7 +136,7 @@
   candle.attachPrimitive(cloudLayer); candle.attachPrimitive(zoneLayer);
 
   // ---------- Data + apply (settings badalta chart reload / zoom reset nahi thay) ----------
-  let bars = [], daily = [], zbars = [], zKey = '', ver = 0, zv = 0, curIv = '5m', infoHtml = '';
+  let bars = [], daily = [], zbars = [], zKey = '', ver = 0, zv = 0, curTf = { kind: 'min', n: 5, minutes: 5, iv: '5m' }, rawBars = [], infoHtml = '';
   const cache = {};
   const upd = (n, key, fn) => { if (cache[n] === key) return false; cache[n] = key; fn(); return true; };
   const fmt = v => v == null || !isFinite(v) ? 'N/A' : v.toFixed(2);
@@ -151,7 +155,7 @@
     const P = S.P, on = S.has && S.vis, ts = chart.timeScale(), rng = ts.getVisibleLogicalRange();
     const calcKeys = Object.keys(DEF).filter(k => k[0] !== 'z' && k !== 'dShow');
     const ch = upd('calc', ver + '|' + on + '|' + calcKeys.map(k => P[k]).join('|'), () => {
-      const R = on && bars.length ? KIS.compute(bars, daily, P, TFMIN[curIv] || 1) : null, cl = R && R.colors;
+      const R = on && bars.length ? KIS.compute(bars, daily, P, curTf.minutes) : null, cl = R && R.colors;
       candle.setData(cl ? bars.map((b, i) => ({ ...b, color: cl[i], borderColor: cl[i], wickColor: cl[i] })) : bars);
       stepSeries.setData(R && P.sShow && R.step ? R.step.points : []);
       smartSeries.setData(R && P.eSmart && R.ema ? R.ema.sPts : []);
@@ -160,7 +164,7 @@
       infoHtml = R && P.sShow && R.step ? buildInfo(P.sMode, R.step.last) : '';
     });
     upd('zone', ver + '|' + zv + '|' + on + '|' + [P.zShow, P.zTop, P.zBot].join('|'), () => {
-      zoneRects = on && P.zShow && curIv !== '1d' && zbars.length && bars.length ? KIS.institutionZones(zbars, bars, { top: +P.zTop, bottom: +P.zBot }) : [];
+      zoneRects = on && P.zShow && curTf.kind === 'min' && zbars.length && bars.length ? KIS.institutionZones(zbars, bars, { top: +P.zTop, bottom: +P.zBot }) : [];
     });
     smartSeries.applyOptions({ color: P.eSCol }); emaSeries.applyOptions({ color: P.eCol });
     const info = $('info'); info.innerHTML = infoHtml; info.style.display = on && P.dShow && infoHtml ? 'block' : 'none';
@@ -178,21 +182,52 @@
   }
   async function ensureZone() {
     const P = S.P;
-    if (!(S.has && P.zShow) || curIv === '1d') { if (zbars.length) { zbars = []; zv++; } zKey = ''; return; }
-    const key = ySym + '|' + curIv + '|' + P.zTf; if (key === zKey) return; zKey = key;
-    if (P.zTf === curIv) zbars = bars;
+    if (!(S.has && P.zShow) || curTf.kind !== 'min') { if (zbars.length) { zbars = []; zv++; } zKey = ''; return; }
+    const key = ySym + '|' + curTf.id + '|' + P.zTf; if (key === zKey) return; zKey = key;
+    if (curTf.iv === P.zTf) zbars = rawBars;
     else { try { zbars = await get(ySym, P.zTf, RANGE[P.zTf]); } catch (e) { zbars = []; setStatus('Zone data: ' + e.message); } }
     zv++;
   }
+  // ----- Timeframes: preset + user defined (7m, 2h, 3D, 2W, 3M ...) -----
+  const PRESETS = [['Minutes', ['1m', '2m', '3m', '5m', '10m', '15m', '30m', '45m']], ['Hours', ['60m', '120m', '180m', '240m']], ['Days', ['1D', '2D', '3D']], ['Weeks', ['1W']], ['Months', ['1M', '3M']]];
+  function parseTF(v) {
+    const m = String(v).trim().match(/^(\d+)\s*([a-zA-Z]*)$/); if (!m) return null;
+    const n = +m[1], u = m[2]; if (!n) return null;
+    if (u === '' || u === 'm' || u === 'min') return n <= 1440 ? { id: n + 'm', kind: 'min', n, minutes: n } : null;
+    if (u === 'h' || u === 'H') return n <= 24 ? { id: n * 60 + 'm', kind: 'min', n: n * 60, minutes: n * 60 } : null;
+    if (u === 'd' || u === 'D') return n <= 30 ? { id: n + 'D', kind: 'D', n, minutes: 1440 * n } : null;
+    if (u === 'w' || u === 'W') return n <= 12 ? { id: n + 'W', kind: 'W', n, minutes: 10080 * n } : null;
+    if (u === 'M') return n <= 12 ? { id: n + 'M', kind: 'M', n, minutes: 43200 * n } : null;
+    return null;
+  }
+  const tfLabel = t => t.kind === 'min' ? (t.minutes % 60 === 0 ? t.minutes / 60 + 'h' : t.minutes + 'm') : t.id;
+  const tfName = t => { const x = t.kind === 'min' && t.minutes % 60 === 0 ? [t.minutes / 60, 'hour'] : t.kind === 'min' ? [t.minutes, 'minute'] : [t.n, { D: 'day', W: 'week', M: 'month' }[t.kind]]; return x[0] + ' ' + x[1] + (x[0] > 1 ? 's' : ''); };
+  function tfInfo(t) { // Yahoo na kayu interval thi data lai ne ketla ma resample karvu
+    if (t.kind === 'min') { const b = [60, 30, 15, 5, 1].find(x => t.minutes % x === 0), iv = b === 60 ? '60m' : b + 'm'; return { ...t, iv, range: RANGE[iv], resample: t.minutes !== b }; }
+    return { ...t, iv: t.kind === 'D' ? '1d' : t.kind === 'W' ? '1wk' : '1mo', range: t.kind === 'M' ? 'max' : '10y', resample: t.n > 1 };
+  }
+  function resampleMin(b, m) { // har din ni session start thi bucket
+    const out = []; let day = null, start = 0, cur = null;
+    for (const x of b) {
+      const d = Math.floor(x.time / 86400); if (d !== day) { day = d; start = x.time; cur = null; }
+      const t = start + Math.floor((x.time - start) / (m * 60)) * m * 60;
+      if (cur && cur.time === t) { cur.high = Math.max(cur.high, x.high); cur.low = Math.min(cur.low, x.low); cur.close = x.close; cur.volume = (cur.volume || 0) + (x.volume || 0); }
+      else { cur = { ...x, time: t }; out.push(cur); }
+    }
+    return out;
+  }
+  function groupN(b, n) { const o = []; for (let i = 0; i < b.length; i += n) { const g = b.slice(i, i + n); o.push({ time: g[0].time, open: g[0].open, high: Math.max(...g.map(x => x.high)), low: Math.min(...g.map(x => x.low)), close: g[g.length - 1].close, volume: g.reduce((a, x) => a + (x.volume || 0), 0) }); } return o; }
   async function load(fit) {
-    const tf = TFS.find(t => t[1] === S.tf) || TFS[1], t0 = performance.now();
+    const tf = tfInfo(parseTF(S.tf) || parseTF('5m')), t0 = performance.now();
     const rng = chart.timeScale().getVisibleLogicalRange(); setStatus('Loading...');
     try {
-      const d = await fetchBars(tf[1], tf[2]), dd = tf[1] === '1d' ? null : await get(ySym, '1d', '2y');
-      curIv = tf[1]; bars = d; daily = dd || d; zKey = ''; ver++;
+      const raw = await fetchBars(tf.iv, tf.range);
+      const d = tf.kind === 'min' ? (tf.resample ? resampleMin(raw, tf.minutes) : raw) : (tf.resample ? groupN(raw, tf.n) : raw);
+      const dd = tf.kind === 'D' && tf.n === 1 ? d : await get(ySym, '1d', tf.kind === 'min' ? '2y' : '10y');
+      curTf = tf; rawBars = raw; bars = d; daily = dd; zKey = ''; ver++; sel = null;
       await ensureZone(); applyAll();
       if (fit || !rng) chart.timeScale().resetTimeScale(); else chart.timeScale().setVisibleLogicalRange(rng);
-      setStatus(`${symName()}${ySym !== cands()[0] || cands().length > 1 && ySym !== SYMBOLS.find(x => x[0] === S.sym)[1][0] ? ' (' + ySym + ')' : ''} · ${tf[0]} · ${bars.length} candles · ${(performance.now() - t0).toFixed(0)} ms`);
+      setStatus(`${symName()}${ySym !== cands()[0] || cands().length > 1 && ySym !== SYMBOLS.find(x => x[0] === S.sym)[1][0] ? ' (' + ySym + ')' : ''} · ${tfLabel(tf)} · ${bars.length} candles · ${(performance.now() - t0).toFixed(0)} ms`);
     } catch (e) { setStatus('Error: ' + e.message); }
   }
 
@@ -312,14 +347,126 @@
   }
   $('cset').append(ico('gear')); $('cset').onclick = openChartSettings;
 
+  // ---------- Long / Short position tool ----------
+  const el = $('chart');
+  let tool = '', sel = null, drag = null;
+  const dlist = () => (S.draw[S.sym] = S.draw[S.sym] || []);
+  const stepSec = () => { if (bars.length < 3) return 300; const d = []; for (let i = Math.max(1, bars.length - 40); i < bars.length; i++) d.push(bars[i].time - bars[i - 1].time); d.sort((a, b) => a - b); return d[d.length >> 1] || 300; };
+  function idxOf(t) { const n = bars.length; if (!n) return 0; if (t >= bars[n - 1].time) return n - 1 + (t - bars[n - 1].time) / stepSec(); if (t <= bars[0].time) return (t - bars[0].time) / stepSec();
+    let lo = 0, hi = n - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (bars[m].time <= t) lo = m; else hi = m; } return lo + (t - bars[lo].time) / (bars[hi].time - bars[lo].time); }
+  function timeOf(i) { const n = bars.length; if (!n) return 0; if (i >= n - 1) return bars[n - 1].time + (i - (n - 1)) * stepSec(); if (i <= 0) return bars[0].time + i * stepSec(); const lo = Math.floor(i); return bars[lo].time + (i - lo) * (bars[lo + 1].time - bars[lo].time); }
+  const geo = d => { const ts = chart.timeScale(), x0 = ts.logicalToCoordinate(idxOf(d.t0)), x1 = ts.logicalToCoordinate(idxOf(d.t1)), yE = candle.priceToCoordinate(d.entry), yS = candle.priceToCoordinate(d.stop), yT = candle.priceToCoordinate(d.target);
+    return [x0, x1, yE, yS, yT].some(v => v == null) ? null : { xL: Math.min(x0, x1), xR: Math.max(x0, x1), yE, yS, yT }; };
+  const fmtP = v => v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pc = (a, b) => (a >= b ? '+' : '') + ((a - b) / b * 100).toFixed(2) + '%';
+  const drawLayer = new Layer(t => t.useBitmapCoordinateSpace(({ context: c, horizontalPixelRatio: hr, verticalPixelRatio: vr }) => {
+    const txt = css('--text'); let selG = null;
+    const line = (x0, x1, y) => { c.beginPath(); c.moveTo(x0 * hr, y * vr); c.lineTo(x1 * hr, y * vr); c.stroke(); };
+    for (const d of dlist()) {
+      const g = geo(d); if (!g) continue; if (d.id === sel) selG = g;
+      const w = g.xR - g.xL, risk = Math.abs(d.entry - d.stop), rew = Math.abs(d.target - d.entry);
+      const zone = (y, col) => { c.fillStyle = col; c.fillRect(g.xL * hr, Math.min(g.yE, y) * vr, w * hr, Math.abs(y - g.yE) * vr); };
+      zone(g.yT, 'rgba(38,166,154,.22)'); zone(g.yS, 'rgba(239,83,80,.22)');
+      c.lineWidth = Math.max(1, hr);
+      c.strokeStyle = '#26a69a'; line(g.xL, g.xR, g.yT); c.strokeStyle = '#ef5350'; line(g.xL, g.xR, g.yS); c.strokeStyle = '#8a93a6'; line(g.xL, g.xR, g.yE);
+      c.save(); c.beginPath(); c.rect(g.xL * hr, 0, w * hr, 1e5); c.clip();
+      c.font = `${12 * hr}px system-ui,sans-serif`; c.textBaseline = 'middle'; c.textAlign = 'center'; c.fillStyle = txt;
+      const cx = (g.xL + g.xR) / 2 * hr;
+      c.fillText(`Target ${fmtP(d.target)} (${pc(d.target, d.entry)}) · ${fmtP(rew)} pts`, cx, (g.yT < g.yE ? g.yT + 14 : g.yT - 14) * vr);
+      c.fillText(`Stop ${fmtP(d.stop)} (${pc(d.stop, d.entry)}) · ${fmtP(risk)} pts`, cx, (g.yS > g.yE ? g.yS - 14 : g.yS + 14) * vr);
+      const lab = `${d.type === 'long' ? 'Long' : 'Short'} · R:R ${(rew / risk).toFixed(2)}`, tw = c.measureText(lab).width + 16 * hr;
+      c.fillStyle = '#2962ff'; c.fillRect(cx - tw / 2, g.yE * vr - 9 * vr, tw, 18 * vr); c.fillStyle = '#fff'; c.fillText(lab, cx, g.yE * vr);
+      c.restore();
+    }
+    if (selG) { [[selG.xR, selG.yT], [selG.xR, selG.yS], [selG.xR, selG.yE]].forEach(([x, y]) => { c.beginPath(); c.arc(x * hr, y * vr, 5 * hr, 0, 7); c.fillStyle = '#fff'; c.fill(); c.strokeStyle = '#2962ff'; c.lineWidth = 2 * hr; c.stroke(); }); }
+    const dt = $('dtool'); if (selG) { dt.style.display = 'flex'; dt.style.left = Math.max(4, Math.min(selG.xR - 44, el.clientWidth - 52)) + 'px'; dt.style.top = Math.max(4, Math.min(selG.yT, selG.yS, selG.yE) - 44) + 'px'; } else dt.style.display = 'none';
+  }), 'top');
+  candle.attachPrimitive(drawLayer);
+  const near = (x, y, px, py) => Math.hypot(x - px, y - py) <= 13;
+  function hitTest(x, y) {
+    const L = dlist();
+    if (sel) { const d = L.find(q => q.id === sel), g = d && geo(d); if (g) { if (near(x, y, g.xR, g.yT)) return { d, part: 'target' }; if (near(x, y, g.xR, g.yS)) return { d, part: 'stop' }; if (near(x, y, g.xR, g.yE)) return { d, part: 'width' }; } }
+    for (let i = L.length - 1; i >= 0; i--) { const g = geo(L[i]); if (g && x >= g.xL && x <= g.xR && y >= Math.min(g.yT, g.yS, g.yE) && y <= Math.max(g.yT, g.yS, g.yE)) return { d: L[i], part: 'body' }; }
+    return null;
+  }
+  const pt = e => { const t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e, r = el.getBoundingClientRect(); return { x: t.clientX - r.left, y: t.clientY - r.top }; };
+  const inPane = p => p.x >= 0 && p.x < el.clientWidth - chart.priceScale('right').width() && p.y >= 0 && p.y < el.clientHeight - chart.timeScale().height();
+  const lock = on => chart.applyOptions({ handleScroll: { mouseWheel: true, pressedMouseMove: !on, horzTouchDrag: !on, vertTouchDrag: !on }, handleScale: { mouseWheel: S.C.zoomAnchor === 'cursor', pinch: !on, axisPressedMouseMove: { time: !on, price: !on }, axisDoubleClickReset: { time: true, price: true } } });
+  function setTool(t) { tool = t; document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('on', b.dataset.tool === t)); el.style.cursor = t ? 'crosshair' : ''; if (t) setStatus('Chart par click karo: ' + (t === 'long' ? 'Long' : 'Short') + ' position'); }
+  function place(p) {
+    const i0 = chart.timeScale().coordinateToLogical(p.x), pr = candle.coordinateToPrice(p.y); if (i0 == null || pr == null) return;
+    const rs = bars.slice(-20).map(b => b.high - b.low), risk = Math.max(1.5 * rs.reduce((a, b) => a + b, 0) / (rs.length || 1), pr * 0.0005), long = tool === 'long';
+    const d = { id: Date.now() + '' + Math.floor(Math.random() * 1e4), type: tool, t0: timeOf(i0), t1: timeOf(i0 + 25), entry: pr, stop: long ? pr - risk : pr + risk, target: long ? pr + 2 * risk : pr - 2 * risk };
+    dlist().push(d); sel = d.id; setTool(''); save(); drawLayer.refresh();
+  }
+  function down(e) {
+    if ((e.type === 'mousedown' && e.button !== 0) || (e.touches && e.touches.length > 1)) return;
+    const p = pt(e); if (!bars.length || !inPane(p)) return;
+    if (tool) { place(p); e.stopPropagation(); e.preventDefault(); return; }
+    const hit = hitTest(p.x, p.y);
+    if (!hit) { if (sel) { sel = null; drawLayer.refresh(); } return; }
+    sel = hit.d.id; drag = { d: hit.d, part: hit.part, o: { ...hit.d }, i0: chart.timeScale().coordinateToLogical(p.x), pr0: candle.coordinateToPrice(p.y) };
+    lock(true); drawLayer.refresh(); e.stopPropagation(); e.preventDefault();
+  }
+  function move(e) {
+    if (!drag) return; const p = pt(e), d = drag.d, o = drag.o, long = d.type === 'long', ts = chart.timeScale(), pr = candle.coordinateToPrice(p.y), eps = Math.abs(o.entry) * 1e-5, i = ts.coordinateToLogical(p.x);
+    if (drag.part === 'target' && pr != null) d.target = long ? Math.max(pr, d.entry + eps) : Math.min(pr, d.entry - eps);
+    else if (drag.part === 'stop' && pr != null) d.stop = long ? Math.min(pr, d.entry - eps) : Math.max(pr, d.entry + eps);
+    else if (drag.part === 'width') { if (i != null) d.t1 = timeOf(Math.max(i, idxOf(d.t0) + 1)); }
+    else { const dI = i == null || drag.i0 == null ? 0 : i - drag.i0, dP = pr == null || drag.pr0 == null ? 0 : pr - drag.pr0;
+      d.t0 = timeOf(idxOf(o.t0) + dI); d.t1 = timeOf(idxOf(o.t1) + dI); d.entry = o.entry + dP; d.stop = o.stop + dP; d.target = o.target + dP; }
+    drawLayer.refresh(); e.preventDefault(); e.stopPropagation();
+  }
+  const up = () => { if (!drag) return; drag = null; lock(false); save(); };
+  const delSel = () => { if (!sel) return; S.draw[S.sym] = dlist().filter(d => d.id !== sel); sel = null; save(); drawLayer.refresh(); };
+  el.addEventListener('mousedown', down, true); el.addEventListener('touchstart', down, { capture: true, passive: false });
+  window.addEventListener('mousemove', move, true); window.addEventListener('touchmove', move, { capture: true, passive: false });
+  ['mouseup', 'touchend', 'touchcancel'].forEach(t => window.addEventListener(t, up, true));
+  document.addEventListener('keydown', e => {
+    if (document.querySelector('.ov') || (e.target.closest && e.target.closest('input,select,textarea'))) return;
+    if ((e.key === 'Delete' || e.key === 'Backspace') && sel) { e.preventDefault(); delSel(); }
+    else if (e.key === 'Escape') { setTool(''); sel = null; drawLayer.refresh(); }
+  });
+  $('tCur').append(ico('cursor')); $('tLong').append(ico('long')); $('tShort').append(ico('short')); $('dDel').append(ico('trash'));
+  document.querySelectorAll('#tools button').forEach(b => b.onclick = () => setTool(b.dataset.tool));
+  $('dDel').onclick = delSel;
+
+  // ---------- Timeframe selector ----------
+  function renderTfs() {
+    const box = $('tfs'), cur = parseTF(S.tf) || parseTF('5m'); box.innerHTML = '';
+    const ids = (S.fav.includes(cur.id) ? [...S.fav] : [...S.fav, cur.id]).map(parseTF).filter(Boolean).sort((a, b) => a.minutes - b.minutes);
+    ids.forEach(t => box.append(h('button', { class: t.id === cur.id ? 'on' : '', onclick: () => pickTf(t.id) }, tfLabel(t))));
+    box.append(h('button', { class: 'more', title: 'All timeframes / custom', onclick: openTf }, ico('chev')));
+  }
+  const pickTf = id => { S.tf = id; save(); renderTfs(); load(true); };
+  function openTf() {
+    modal('Timeframe', (md, close) => {
+      const body = h('div', { class: 'md-b' }), err = h('small', { class: 'err' }), cur = (parseTF(S.tf) || parseTF('5m')).id;
+      const inp = h('input', { class: 'sel srch', type: 'text', placeholder: 'Custom: 7m, 2h, 3D, 2W …' });
+      const addC = () => { const t = parseTF(inp.value); if (!t) { err.textContent = 'Format: 7m, 2h, 3D, 2W, 1M'; return; }
+        if (!PRESETS.some(g => g[1].includes(t.id)) && !S.custom.includes(t.id)) S.custom.push(t.id); close(); pickTf(t.id); };
+      inp.onkeydown = e => { if (e.key === 'Enter') addC(); };
+      const render = () => { body.innerHTML = '';
+        [...PRESETS, ...(S.custom.length ? [['Custom', S.custom]] : [])].forEach(([g, ids]) => {
+          body.append(h('div', { class: 'grp nc' }, g));
+          ids.forEach(id => { const t = parseTF(id), fav = S.fav.includes(id);
+            body.append(h('div', { class: 'item' + (id === cur ? ' on' : ''), onclick: () => { close(); pickTf(id); } }, h('span', {}, tfName(t)),
+              h('span', { class: 'acts' },
+                g === 'Custom' ? h('button', { class: 'star', title: 'Remove', onclick: e => { e.stopPropagation(); S.custom = S.custom.filter(x => x !== id); S.fav = S.fav.filter(x => x !== id); save(); renderTfs(); render(); } }, ico('x')) : '',
+                h('button', { class: 'star' + (fav ? ' on' : ''), title: 'Pin to toolbar', onclick: e => { e.stopPropagation(); S.fav = fav ? S.fav.filter(x => x !== id) : [...S.fav, id]; save(); renderTfs(); render(); } }, '★'))));
+          });
+        });
+      };
+      md.append(h('div', { class: 'srchw tfadd' }, inp, h('button', { class: 'btn pri', onclick: addC }, 'Add'), err), body); render(); inp.focus();
+    });
+  }
+
   // ---------- Toolbar wiring ----------
   SYMBOLS.forEach(x => $('sym').append(h('option', { value: x[0] }, x[0]))); $('sym').value = S.sym;
   $('sym').onchange = () => { S.sym = $('sym').value; save(); load(true); };
-  TFS.forEach(t => $('tfs').append(h('button', { 'data-tf': t[1], onclick: () => { S.tf = t[1]; save(); markTf(); load(true); } }, t[0])));
-  const markTf = () => document.querySelectorAll('#tfs button').forEach(b => b.classList.toggle('on', b.dataset.tf === S.tf));
   const themeIco = () => { $('theme').innerHTML = ''; $('theme').append(ico(S.theme === 'dark' ? 'sun' : 'moon')); };
   $('theme').onclick = () => { S.theme = S.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = S.theme; chart.applyOptions(themeOpts()); themeIco(); save(); };
   $('refresh').append(ico('refresh')); $('refresh').onclick = () => load(false);
   $('icoAct').append(ico('act')); $('indBtn').onclick = openIndicators;
-  markTf(); themeIco(); renderLegend(); load(true);
+  renderTfs(); themeIco(); renderLegend(); setTool(''); load(true);
 })();
